@@ -152,6 +152,20 @@ pub enum CoreError {
         /// The underlying zarr-metadata / decode error.
         detail: String,
     },
+    /// A small CONTROL parquet (`domain_mapping_v1`, `domain_attributes_v1`,
+    /// `cell_to_reach_v1`, `cell_to_gauge_v1`, `gauge_metadata_v1`) was opened but
+    /// a typed projection could not materialize its rows: a column the projection
+    /// requires is absent, has the wrong arrow type, or carries a null in a
+    /// non-nullable index/value column. This is a read-materialization precondition,
+    /// NOT a conformance verdict — dense-zero-based indexing, dangling-id detection,
+    /// cardinality derivation, and weight range checks are the A6/A8 validator's job.
+    #[error("could not materialize control table {artifact}: {detail}")]
+    ControlTableMalformed {
+        /// The artifact path/label echoed for diagnostics.
+        artifact: String,
+        /// What was wrong (missing column, wrong type, null in a required column).
+        detail: String,
+    },
 }
 
 #[cfg(test)]
