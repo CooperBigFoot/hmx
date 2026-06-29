@@ -1,0 +1,23 @@
+/target
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Session orchestration tooling (saved dynamic workflow scripts), not project source.
+.claude/workflows/
+
+# Conformance fixture generator (lands in A11): dev-only Python harness artifacts.
+conformance/generator/.venv/
+conformance/generator/**/__pycache__/
+conformance/generator/.lock.sha256
+conformance/generator/scratch/
+**/__pycache__/
+*.py[cod]
+
+# PyO3 binding build/test artifacts: the dedicated binding venv + maturin wheels.
+crates/python/.venv/
+target/wheels/
+
+# Orchestration build audit (per-step plans + critiques): process trail, not product.
+planning/

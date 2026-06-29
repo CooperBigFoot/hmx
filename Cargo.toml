@@ -1,0 +1,14 @@
+[workspace]
+members = ["crates/*"]
+
+[package]
+name = "hmx"
+version = "0.1.1"
+edition = "2024"
+
+[dependencies]
+hmx-core = { path = "crates/core" }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

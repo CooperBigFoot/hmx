@@ -1,0 +1,21 @@
+[build-system]
+requires = ["maturin>=1,<2"]
+build-backend = "maturin"
+
+[project]
+name = "hmx"
+description = "PyO3 binding for hmx-core (Hydrology Model Exchange) — skeleton; validate/describe land in A10."
+# Matches the abi3-py312 floor pinned in Cargo.toml: a single abi3 wheel imports
+# on CPython 3.12 and later.
+requires-python = ">=3.12"
+dynamic = ["version"]
+
+[tool.maturin]
+# The importable module is `hmx` (= the [lib] name in Cargo.toml).
+module-name = "hmx"
+# Enable the OPTIONAL, non-default `extension-module` feature for the WHEEL ONLY:
+# `cargo build/test/clippy` keep it OFF so the rlib/test targets link on macOS,
+# while the wheel's cdylib gets the correct extension-module link behavior.
+features = ["extension-module"]
+# Build one forward-compatible abi3 wheel against the CPython 3.12 stable ABI.
+abi3 = true

@@ -1,0 +1,32 @@
+[package]
+name = "hmx-python"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# PyO3 with the abi3-py312 floor: one forward-compatible abi3 wheel imports on
+# CPython 3.12+. `default-features = false` keeps `extension-module` OUT of the
+# default set (the macOS-link decision): `cargo build/test/clippy --all-targets`
+# link the rlib/test targets with it OFF; `maturin` turns it ON for the wheel only
+# (see [tool.maturin] in pyproject.toml). `macros` is re-added explicitly because
+# `default-features = false` drops PyO3's default feature set (which includes it).
+pyo3 = { version = "0.24", default-features = false, features = ["abi3-py312", "macros"] }
+# The core crate this binding mirrors. A1 exposes only `__core_version`; the
+# validate/describe mirrors land in A10. hmx-core carries ALL contract logic.
+hmx-core = { path = "../core" }
+
+[lib]
+# The importable Python module is `import hmx`.
+name = "hmx"
+# Two crate types, deliberately:
+#   - cdylib — the actual Python extension module maturin packages into the wheel.
+#   - rlib   — a normal Rust library target so `cargo test`/`clippy --all-targets`
+#              have something to build the `#[cfg(test)]` unit tests against.
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# OPTIONAL, NON-DEFAULT (paired with `default-features = false` above). Enabling it
+# unconditionally is the canonical PyO3 macOS gotcha that breaks linking of every
+# non-cdylib target. `cargo` never enables it; `[tool.maturin] features =
+# ["extension-module"]` in pyproject.toml turns it ON for the wheel build only.
+extension-module = ["pyo3/extension-module"]
