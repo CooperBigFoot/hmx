@@ -1,13 +1,14 @@
 //! `hmx-core` — Hydrology Model Exchange core.
 //!
 //! Module map: [`types`] carries inert domain values, `dto` carries the private
-//! serde layer, and [`manifest`] exposes the parse boundary and `manifest.json`
-//! reader. Payload readers, verbs, and the package content-hash land in later
-//! steps.
+//! serde layer, [`manifest`] exposes the `manifest.json` parse boundary, and
+//! [`registry`] exposes the typed field registry (D2). Payload readers, verbs,
+//! and the package content-hash land in later steps.
 
 use tracing::debug;
 
 pub mod manifest;
+pub mod registry;
 pub mod readers;
 pub mod types;
 
@@ -103,6 +104,45 @@ pub enum CoreError {
         /// The attempted `<package_root>/manifest.json` path.
         path: String,
         /// The underlying IO error message.
+        detail: String,
+    },
+    /// Two registry entries declare the same `id` (spec §6.2 — ids are unique keys).
+    #[error("duplicate field-registry id {id:?}")]
+    DuplicateFieldId {
+        /// The repeated field id.
+        id: String,
+    },
+    /// A consumer asked the registry for a field that is not declared (spec §6.5 —
+    /// no model-consumed field may bypass the input-completeness gate; F8/F19).
+    #[error("field {id:?} is not declared in the registry (spec §6.5)")]
+    UndeclaredField {
+        /// The undeclared field id.
+        id: String,
+    },
+    /// `registry_version` is not the single recognized value `"1"` (spec §6 hard
+    /// cut). Read FIRST, so it wins over every other registry field-value error.
+    #[error("unknown field registry_version {found:?}: the only recognized value is \"1\"")]
+    UnknownRegistryVersion {
+        /// The rejected raw `registry_version` string.
+        found: String,
+    },
+    /// A required field-registry key is absent (serde `missing field`).
+    #[error("field registry is missing required field `{field}`")]
+    MissingRegistryField {
+        /// The absent key name extracted from the serde error.
+        field: String,
+    },
+    /// A key beyond the schema's `additionalProperties:false` set is present in a
+    /// registry entry (serde `unknown field`).
+    #[error("field registry carries an unexpected field `{field}` (additionalProperties:false)")]
+    ExtraRegistryField {
+        /// The offending extra key name.
+        field: String,
+    },
+    /// The field-registry JSON is not valid JSON, or a value has the wrong JSON type.
+    #[error("field registry JSON could not be parsed: {detail}")]
+    InvalidRegistryJson {
+        /// The raw serde_json error message.
         detail: String,
     },
     /// An artifact file could not be read from disk (the BULK readers open the
