@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.1/domain.schema.json",
+  "title": "HMX domain declaration",
+  "description": "A single multi-entity domain declaration (spec §5, OD4). Standalone form of the manifest's domains[] item; entity_count is the single authoritative cardinality; external_ids (optional) MUST have length == entity_count (read-time cross-check, A6).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "entity_count", "index_base"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "entity_count": { "type": "integer", "minimum": 0 },
+    "index_base": { "type": "string", "const": "dense_zero_based" },
+    "external_ids": {
+      "type": "array",
+      "items": { "type": "integer" }
+    }
+  }
+}

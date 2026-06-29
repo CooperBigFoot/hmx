@@ -1,0 +1,8 @@
+{
+  "registry_version": "1",
+  "fields": [
+    { "id": "cells.snow_water_equivalent_m3", "domain": "cell", "quantity": "volume", "units": "m3", "value_type": "f64", "time_meaning": "instant", "role": "differential_state", "conservation_class": "water_volume", "extent": "scalar" },
+    { "id": "cells.flow_dir", "domain": "cell", "quantity": "direction_code", "units": "code", "value_type": "i32", "time_meaning": "instant", "role": "parameter", "conservation_class": "none", "extent": "scalar" },
+    { "id": "glacier.ice_volume_m3", "domain": "glacier", "quantity": "volume", "units": "m3", "value_type": "f64", "time_meaning": "instant", "role": "differential_state", "conservation_class": "water_volume", "extent": "scalar" }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.1/describe.schema.json",
+  "title": "HMX describe output",
+  "description": "The facts-only self-description the describe verb emits (spec §10.2). additionalProperties:false at every level. Surfaces the content-hash (spec §9). No conformant key (that is validate). Versioned implicitly by manifest format_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest", "content_hash", "crs", "grid", "domains", "fields", "mappings", "artifacts"],
+  "properties": {
+    "manifest": { "$ref": "#/$defs/manifest_floor" },
+    "content_hash": { "$ref": "#/$defs/content_hash" },
+    "crs": { "type": "string" },
+    "grid": { "$ref": "#/$defs/grid" },
+    "domains": { "type": "array", "items": { "$ref": "#/$defs/domain_fact" } },
+    "fields": { "type": "array", "items": { "$ref": "#/$defs/field_fact" } },
+    "mappings": { "type": "array", "items": { "$ref": "#/$defs/mapping_fact" } },
+    "artifacts": { "type": "array", "items": { "$ref": "#/$defs/artifact_fact" } }
+  },
+  "$defs": {
+    "manifest_floor": {
+      "title": "HMX manifest identity floor (describe view)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format_version", "name", "created_at", "producer", "producer_version", "package_kind", "crs"],
+      "properties": {
+        "format_version": { "type": "string", "enum": ["0.1"] },
+        "name": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "producer": { "type": "string" },
+        "producer_version": { "type": "string" },
+        "package_kind": { "type": "string", "const": "input" },
+        "crs": { "type": "string" }
+      }
+    },
+    "content_hash": {
+      "title": "HMX package content-hash (describe view)",
+      "description": "The hmx-core-computed package hash (spec §9). describe surfaces it; it is never stored in the manifest.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algo", "value"],
+      "properties": {
+        "algo": { "type": "string", "const": "sha256" },
+        "value": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "grid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["crs", "extent", "cell_size", "nx", "ny", "origin"],
+      "properties": {
+        "crs": { "type": "string" },
+        "extent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["xmin", "ymin", "xmax", "ymax"],
+          "properties": {
+            "xmin": { "type": "number" },
+            "ymin": { "type": "number" },
+            "xmax": { "type": "number" },
+            "ymax": { "type": "number" }
+          }
+        },
+        "cell_size": { "type": "number" },
+        "nx": { "type": "integer" },
+        "ny": { "type": "integer" },
+        "origin": { "type": "string", "enum": ["upper_left"] }
+      }
+    },
+    "domain_fact": {
+      "title": "HMX domain (describe view)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "entity_count", "index_base", "external_id_count"],
+      "properties": {
+        "id": { "type": "string" },
+        "entity_count": { "type": "integer", "minimum": 0 },
+        "index_base": { "type": "string", "enum": ["dense_zero_based"] },
+        "external_id_count": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "field_fact": {
+      "title": "HMX field (describe view)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "domain", "quantity", "units", "value_type", "time_meaning", "role", "conservation_class", "extent"],
+      "properties": {
+        "id": { "type": "string" },
+        "domain": { "type": "string" },
+        "quantity": { "type": "string" },
+        "units": { "type": "string" },
+        "value_type": { "type": "string", "enum": ["f32", "f64", "i32", "i64", "bool"] },
+        "time_meaning": { "type": "string", "enum": ["instant", "rate", "step_amount"] },
+        "role": { "type": "string", "enum": ["differential_state", "parameter", "forcing", "coupling", "diagnostic"] },
+        "conservation_class": { "type": "string", "enum": ["water_volume", "energy", "none"] },
+        "extent": { "type": "string", "enum": ["scalar", "per_layer"] }
+      }
+    },
+    "mapping_fact": {
+      "title": "HMX mapping (describe view)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["purpose", "source_domain", "target_domain", "variable", "artifact_role"],
+      "properties": {
+        "purpose": { "type": "string", "enum": ["cell_to_reach", "cell_to_glacier", "glacier_to_cell", "cell_to_gauge"] },
+        "source_domain": { "type": "string" },
+        "target_domain": { "type": "string" },
+        "variable": { "type": ["string", "null"] },
+        "artifact_role": { "type": "string" }
+      }
+    },
+    "artifact_fact": {
+      "title": "HMX artifact (describe view)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "path", "format", "sha256", "size_bytes"],
+      "properties": {
+        "role": { "type": "string" },
+        "path": { "type": "string" },
+        "format": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "size_bytes": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    }
+  }
+}

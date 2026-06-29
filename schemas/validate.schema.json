@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.1/validate.schema.json",
+  "title": "HMX validate report",
+  "description": "The validation report the validate verb emits (spec §10.3): {checks, conformant}, additionalProperties:false. conformant is true iff no check that RAN failed (fail-closed). The CLOSED set of check ids + the severity model + --strict are owned by step A8 (OD6); this schema constrains the wire shape only and leaves id as a non-empty string. A8 MAY file a one-field revision (spec §14) to pin id to an enum or add severity. Versioned implicitly by manifest format_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["checks", "conformant"],
+  "properties": {
+    "checks": { "type": "array", "items": { "$ref": "#/$defs/check_outcome" } },
+    "conformant": { "type": "boolean" }
+  },
+  "$defs": {
+    "check_outcome": {
+      "title": "HMX check outcome",
+      "description": "One check's recorded result: id + ran/skip + pass/fail/null + depth + opaque detail. A skipped check carries result:null and a non-null detail reason.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "result", "depth", "detail"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "enum": ["ran", "skipped"] },
+        "result": { "type": ["string", "null"], "enum": ["pass", "fail", null] },
+        "depth": { "type": "string", "enum": ["metadata_deep", "byte_deep"] },
+        "detail": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

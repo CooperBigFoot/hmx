@@ -1,0 +1,24 @@
+{
+  "format_version": "0.2",
+  "name": "synthetic-glacier-mini",
+  "created_at": "2026-06-29T00:00:00Z",
+  "producer": "hmx-spec-example",
+  "producer_version": "0.1.2",
+  "package_kind": "input",
+  "crs": "EPSG:32645",
+  "grid": {
+    "crs": "EPSG:32645",
+    "extent": { "xmin": 0.0, "ymin": 0.0, "xmax": 1000.0, "ymax": 1000.0 },
+    "cell_size": 250.0,
+    "nx": 4,
+    "ny": 4,
+    "origin": "upper_left"
+  },
+  "domains": [
+    { "id": "cell", "entity_count": 16, "index_base": "dense_zero_based" }
+  ],
+  "mappings": [],
+  "artifacts": [
+    { "role": "registry.fields", "path": "registry/fields.json", "format": "hmx/field_registry_v1", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" }
+  ]
+}
