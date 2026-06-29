@@ -40,10 +40,27 @@ impl DomainId {
     }
 }
 
+/// A field's identity in the registry (spec §6.2). Keys the `FieldRegistry`
+/// map, so it is hashable and orderable for deterministic iteration.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FieldId(String);
+
+impl FieldId {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 string_newtype!(ArtifactRole);
 string_newtype!(Variable);
 string_newtype!(Sha256);
 string_newtype!(RelativePath);
+string_newtype!(Quantity);
+string_newtype!(Units);
 
 macro_rules! closed_enum {
     ($name:ident, $field:literal, [$(($variant:ident, $value:literal)),+ $(,)?]) => {
@@ -157,6 +174,47 @@ closed_enum!(
         ),
     ]
 );
+closed_enum!(
+    ValueType,
+    "value_type",
+    [
+        (F32, "f32"),
+        (F64, "f64"),
+        (I32, "i32"),
+        (I64, "i64"),
+        (Bool, "bool"),
+    ]
+);
+closed_enum!(
+    FieldTimeMeaning,
+    "time_meaning",
+    [
+        (Instant, "instant"),
+        (Rate, "rate"),
+        (StepAmount, "step_amount"),
+    ]
+);
+closed_enum!(
+    SemanticRole,
+    "role",
+    [
+        (DifferentialState, "differential_state"),
+        (Parameter, "parameter"),
+        (Forcing, "forcing"),
+        (Coupling, "coupling"),
+        (Diagnostic, "diagnostic"),
+    ]
+);
+closed_enum!(
+    ConservationClass,
+    "conservation_class",
+    [
+        (WaterVolume, "water_volume"),
+        (Energy, "energy"),
+        (None, "none"),
+    ]
+);
+closed_enum!(Extent, "extent", [(Scalar, "scalar"), (PerLayer, "per_layer")]);
 
 /// The raster grid the gridded artifacts live on (spec §4.2). Plain data; A3
 /// performs no numeric-range checks (cell_size>0, nx>=1) — those are the A8
@@ -228,8 +286,9 @@ mod tests {
 
     use crate::CoreError;
     use crate::types::{
-        ArtifactFormat, ArtifactTimeMeaning, Crs, FormatVersion, GridOrigin, IndexBase,
-        MappingPurpose, PackageKind,
+        ArtifactFormat, ArtifactTimeMeaning, ConservationClass, Crs, Extent,
+        FieldTimeMeaning, FormatVersion, GridOrigin, IndexBase, MappingPurpose, PackageKind,
+        SemanticRole, ValueType,
     };
 
     #[test]
@@ -263,6 +322,17 @@ mod tests {
             "mean_over_interval",
             "accumulated_over_interval",
         ]);
+        assert_round_trip::<ValueType>(&["f32", "f64", "i32", "i64", "bool"]);
+        assert_round_trip::<FieldTimeMeaning>(&["instant", "rate", "step_amount"]);
+        assert_round_trip::<SemanticRole>(&[
+            "differential_state",
+            "parameter",
+            "forcing",
+            "coupling",
+            "diagnostic",
+        ]);
+        assert_round_trip::<ConservationClass>(&["water_volume", "energy", "none"]);
+        assert_round_trip::<Extent>(&["scalar", "per_layer"]);
     }
 
     #[test]
