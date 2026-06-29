@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fmt:
+    name: rustfmt (changed Rust files only)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      # Changed-files-scoped fmt: NO repo-wide `cargo fmt --check` gate (F13.6).
+      - name: rustfmt --check on changed Rust files only
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then
+            base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"
+          fi
+          files="$(git diff --name-only --diff-filter=ACMR "$base"...HEAD -- '*.rs' || true)"
+          if [ -z "$files" ]; then
+            echo "no changed Rust files — nothing to check"
+            exit 0
+          fi
+          echo "checking:"; echo "$files"
+          fail=0
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            rustfmt --edition 2024 --check "$f" || fail=1
+          done <<< "$files"
+          exit $fail
+
+  clippy:
+    name: clippy (workspace, warnings advisory)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Python (PyO3 link target)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      # No repo-wide `-D warnings` false-fail gate (F13): clippy still fails on
+      # real compile errors; lint warnings are advisory, not a hard block.
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets
+
+  test:
+    name: cargo test (workspace)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Python (PyO3 link target)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run Rust workspace tests
+        run: cargo test --workspace
