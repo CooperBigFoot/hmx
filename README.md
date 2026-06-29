@@ -15,4 +15,3 @@ compositional with them, not a superset. One basin per package.
 - Core crate: `crates/core` (package `hmx-core`)
 - Python binding: `crates/python` (package `hmx-python`)
 - CLI: root `Cargo.toml` (binary `hmx`)
-HMX — Hydrology Model Exchange: an open spec for hydrology model input packages (field registry, cross-domain mappings, multi-entity domains).

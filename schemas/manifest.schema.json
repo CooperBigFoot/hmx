@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.1/manifest.schema.json",
+  "title": "HMX manifest",
+  "description": "The HMX single-basin model-input manifest (spec §3). Exactly eleven top-level keys: additionalProperties:false rejects any out-of-band field (e.g. a stray glacier_count, F2/F10) and required lists them all. The content-hash is NOT carried here (it is computed by hmx-core, spec §9). Entity cardinality lives ONLY in domains[].entity_count (spec §5, OD4). On-disk encodings reuse the bluesmith formats (spec §7, OD5).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format_version",
+    "name",
+    "created_at",
+    "producer",
+    "producer_version",
+    "package_kind",
+    "crs",
+    "grid",
+    "domains",
+    "mappings",
+    "artifacts"
+  ],
+  "properties": {
+    "format_version": {
+      "description": "Hard version cut, read first (spec §0). The only recognized value is \"0.1\"; any other is a structural rejection.",
+      "type": "string",
+      "enum": ["0.1"]
+    },
+    "name": {
+      "description": "Package identity string (spec §3.4).",
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "description": "Package creation time as an RFC 3339 timestamp (spec §3.4).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "description": "The tool that wrote the package (spec §3.4).",
+      "type": "string",
+      "minLength": 1
+    },
+    "producer_version": {
+      "description": "The producer tool version (spec §3.4).",
+      "type": "string",
+      "minLength": 1
+    },
+    "package_kind": {
+      "description": "HMX 0.1 describes input packages only (spec §3.3).",
+      "type": "string",
+      "const": "input"
+    },
+    "crs": {
+      "description": "Explicit package-wide CRS; no module-constant CRS (spec §4, prevents F1).",
+      "type": "string",
+      "minLength": 1
+    },
+    "grid": { "$ref": "#/$defs/grid" },
+    "domains": {
+      "description": "Multi-entity domain declarations (spec §5). Cardinality lives here and only here.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/domain" }
+    },
+    "mappings": {
+      "description": "Explicit cross-domain mapping declarations (spec §8). May be empty.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/mapping" }
+    },
+    "artifacts": {
+      "description": "Every on-disk artifact (spec §7). The sha256-bearing table the content-hash is computed over.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/artifact" }
+    }
+  },
+  "$defs": {
+    "relative_path": {
+      "description": "A package-relative path: not absolute, no parent traversal (spec §2.2).",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*\\.\\.).+$"
+    },
+    "sha256": {
+      "description": "Lowercase-hex SHA-256 (64 chars).",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "format_name": {
+      "description": "The closed HMX on-disk format set (spec §7, OD5).",
+      "type": "string",
+      "enum": [
+        "cog",
+        "zarr",
+        "geoparquet/reach_topology_v1",
+        "parquet/gauge_long_v1",
+        "parquet/gauge_metadata_v1",
+        "parquet/cell_to_gauge_v1",
+        "parquet/cell_to_reach_v1",
+        "parquet/domain_attributes_v1",
+        "parquet/domain_mapping_v1",
+        "hmx/field_registry_v1"
+      ]
+    },
+    "grid": {
+      "title": "HMX grid",
+      "description": "The raster grid the package's gridded artifacts live on (spec §4.2).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["crs", "extent", "cell_size", "nx", "ny", "origin"],
+      "properties": {
+        "crs": { "type": "string", "minLength": 1 },
+        "extent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["xmin", "ymin", "xmax", "ymax"],
+          "properties": {
+            "xmin": { "type": "number" },
+            "ymin": { "type": "number" },
+            "xmax": { "type": "number" },
+            "ymax": { "type": "number" }
+          }
+        },
+        "cell_size": { "type": "number", "exclusiveMinimum": 0 },
+        "nx": { "type": "integer", "minimum": 1 },
+        "ny": { "type": "integer", "minimum": 1 },
+        "origin": { "type": "string", "enum": ["upper_left"] }
+      }
+    },
+    "domain": {
+      "title": "HMX domain",
+      "description": "A multi-entity domain with ONE authoritative cardinality (spec §5, OD4). entity_count is the single source of truth; external_ids (optional) maps internal index -> external id and, when present, MUST have length == entity_count (spec §5.4, enforced at read time by A6).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "entity_count", "index_base"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "entity_count": { "type": "integer", "minimum": 0 },
+        "index_base": { "type": "string", "const": "dense_zero_based" },
+        "external_ids": {
+          "description": "Optional ordered external identifiers (spec §5.4). length == entity_count (cross-checked at read time, not by this schema).",
+          "type": "array",
+          "items": { "type": "integer" }
+        }
+      }
+    },
+    "mapping": {
+      "title": "HMX mapping",
+      "description": "An explicit cross-domain mapping (spec §8). When purpose == cell_to_gauge, variable is required.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["purpose", "source_domain", "target_domain", "artifact_role"],
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "enum": ["cell_to_reach", "cell_to_glacier", "glacier_to_cell", "cell_to_gauge"]
+        },
+        "source_domain": { "type": "string", "minLength": 1 },
+        "target_domain": { "type": "string", "minLength": 1 },
+        "variable": { "type": "string", "minLength": 1 },
+        "artifact_role": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "purpose": { "const": "cell_to_gauge" } } },
+          "then": { "required": ["variable"] }
+        }
+      ]
+    },
+    "artifact": {
+      "title": "HMX artifact",
+      "description": "One on-disk artifact (spec §7.2). role/path/format/sha256 required; the rest optional metadata.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "path", "format", "sha256"],
+      "properties": {
+        "role": { "type": "string", "minLength": 1 },
+        "path": { "$ref": "#/$defs/relative_path" },
+        "format": { "$ref": "#/$defs/format_name" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size_bytes": { "type": "integer", "minimum": 0 },
+        "crs": { "type": "string", "minLength": 1 },
+        "domain": { "type": "string", "minLength": 1 },
+        "variable": { "type": "string", "minLength": 1 },
+        "unit": { "type": "string" },
+        "time_meaning": {
+          "type": "string",
+          "enum": ["instant", "rate", "step_amount", "mean_over_interval", "accumulated_over_interval"]
+        },
+        "interval_seconds": { "type": "integer", "minimum": 0 },
+        "row_count": { "type": "integer", "minimum": 0 },
+        "first_step_index": { "type": "integer", "minimum": 0 },
+        "last_step_index": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

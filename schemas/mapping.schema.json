@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.1/mapping.schema.json",
+  "title": "HMX mapping declaration",
+  "description": "A single explicit cross-domain mapping declaration (spec §8). Standalone form of the manifest's mappings[] item. When purpose == cell_to_gauge, variable is required.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["purpose", "source_domain", "target_domain", "artifact_role"],
+  "properties": {
+    "purpose": {
+      "type": "string",
+      "enum": ["cell_to_reach", "cell_to_glacier", "glacier_to_cell", "cell_to_gauge"]
+    },
+    "source_domain": { "type": "string", "minLength": 1 },
+    "target_domain": { "type": "string", "minLength": 1 },
+    "variable": { "type": "string", "minLength": 1 },
+    "artifact_role": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "purpose": { "const": "cell_to_gauge" } } },
+      "then": { "required": ["variable"] }
+    }
+  ]
+}

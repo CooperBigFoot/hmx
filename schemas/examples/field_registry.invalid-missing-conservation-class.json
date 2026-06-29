@@ -1,0 +1,6 @@
+{
+  "registry_version": "1",
+  "fields": [
+    { "id": "cells.flow_dir", "domain": "cell", "quantity": "direction_code", "units": "code", "value_type": "i32", "time_meaning": "instant", "role": "parameter", "extent": "scalar" }
+  ]
+}

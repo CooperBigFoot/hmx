@@ -1,0 +1,1 @@
+{ "purpose": "cell_to_glacier", "source_domain": "cell", "target_domain": "glacier", "artifact_role": "mapping.cell_to_glacier" }

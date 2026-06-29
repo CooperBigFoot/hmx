@@ -1,0 +1,7 @@
+{
+  "checks": [
+    { "id": "M1", "status": "ran", "result": "pass", "depth": "metadata_deep", "detail": null },
+    { "id": "G1", "status": "skipped", "result": null, "depth": "byte_deep", "detail": "requires a chunk read; deferred" }
+  ],
+  "conformant": true
+}

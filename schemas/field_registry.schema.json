@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.1/field_registry.schema.json",
+  "title": "HMX field registry",
+  "description": "The typed field registry artifact (registry/fields.json, format hmx/field_registry_v1; spec §6, OD3). A SEPARATE validated package artifact. conservation_class is a first-class attribute (OD3), not derived from exchange obligations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["registry_version", "fields"],
+  "properties": {
+    "registry_version": { "type": "string", "const": "1" },
+    "fields": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/field" }
+    }
+  },
+  "$defs": {
+    "field": {
+      "title": "HMX field-registry entry",
+      "description": "One field's typed spec (spec §6.2). Exactly nine keys; additionalProperties:false. Every model-consumed field MUST appear here (prevents F8/F19).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "domain",
+        "quantity",
+        "units",
+        "value_type",
+        "time_meaning",
+        "role",
+        "conservation_class",
+        "extent"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "domain": { "type": "string", "minLength": 1 },
+        "quantity": { "type": "string", "minLength": 1 },
+        "units": { "type": "string", "minLength": 1 },
+        "value_type": { "type": "string", "enum": ["f32", "f64", "i32", "i64", "bool"] },
+        "time_meaning": { "type": "string", "enum": ["instant", "rate", "step_amount"] },
+        "role": {
+          "type": "string",
+          "enum": ["differential_state", "parameter", "forcing", "coupling", "diagnostic"]
+        },
+        "conservation_class": { "type": "string", "enum": ["water_volume", "energy", "none"] },
+        "extent": { "type": "string", "enum": ["scalar", "per_layer"] }
+      }
+    }
+  }
+}
