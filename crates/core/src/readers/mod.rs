@@ -11,6 +11,7 @@ use bytes::Bytes;
 use crate::CoreError;
 
 pub mod cog_reader;
+pub mod control_plane;
 pub mod geoparquet_reader;
 pub mod parquet_meta;
 pub mod zarr_reader;
