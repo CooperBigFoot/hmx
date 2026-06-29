@@ -8,6 +8,7 @@
 use tracing::debug;
 
 pub mod manifest;
+pub mod readers;
 pub mod types;
 
 mod dto;
@@ -102,6 +103,53 @@ pub enum CoreError {
         /// The attempted `<package_root>/manifest.json` path.
         path: String,
         /// The underlying IO error message.
+        detail: String,
+    },
+    /// An artifact file could not be read from disk (the BULK readers open the
+    /// declared `path` from the package root). Distinct from `ManifestUnreadable`,
+    /// which is the manifest JSON itself.
+    #[error("could not read artifact at {path}: {detail}")]
+    ArtifactUnreadable {
+        /// The artifact path the reader attempted to open.
+        path: String,
+        /// The underlying IO error message.
+        detail: String,
+    },
+    /// A parquet (or GeoParquet) footer/schema failed to decode (corrupt file,
+    /// not a parquet file, or unreadable metadata). The reader decodes NO data page.
+    #[error("could not read parquet metadata for {artifact}: {detail}")]
+    ParquetRead {
+        /// The artifact path/label echoed for diagnostics.
+        artifact: String,
+        /// The underlying parquet/arrow reader error.
+        detail: String,
+    },
+    /// A GeoParquet `geo` footer block was present but is not valid JSON / lacks the
+    /// expected keys. Absence of the `geo` key is NOT this error — that is surfaced
+    /// as "no geo metadata", not a failure.
+    #[error("could not parse GeoParquet `geo` metadata for {artifact}: {detail}")]
+    GeoMetadataMalformed {
+        /// The artifact path/label echoed for diagnostics.
+        artifact: String,
+        /// What was wrong with the `geo` JSON block.
+        detail: String,
+    },
+    /// A COG GeoTIFF could not be opened or its tags could not be read. The reader
+    /// reads georef/band TAGS only and decodes NO pixel strip/tile.
+    #[error("could not read COG metadata for {artifact}: {detail}")]
+    CogRead {
+        /// The artifact path/label echoed for diagnostics.
+        artifact: String,
+        /// The underlying `tiff` decoder error.
+        detail: String,
+    },
+    /// A Zarr v3 `zarr.json` (or a 1-D coordinate chunk) could not be read/decoded.
+    /// The reader reads `zarr.json` + 1-D coordinate chunks only — never a data chunk.
+    #[error("could not read Zarr metadata for {artifact}: {detail}")]
+    ZarrRead {
+        /// The artifact path/label echoed for diagnostics.
+        artifact: String,
+        /// The underlying zarr-metadata / decode error.
         detail: String,
     },
 }

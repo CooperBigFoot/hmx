@@ -11,3 +11,28 @@ serde_json = "1"
 # Strict RFC 3339 parsing for manifest `created_at` (spec §3.4). `time` over
 # `chrono` for its strictly-RFC-3339 `well_known::Rfc3339` parser.
 time = { version = "0.3", features = ["parsing", "formatting"] }
+# --- A4 BULK metadata-only reader stack (pure Rust, NO GDAL) ---
+# Apache Arrow / Parquet, pinned to major 58. `parquet` carries the `arrow`
+# integration (surfaces the schema as an arrow `Schema`) plus `snap`. A4 reads
+# footer/schema/row-group statistics only — never a data page, never a gridded
+# chunk, never the geoparquet `geometry` blob.
+arrow = { version = "58", default-features = false }
+parquet = { version = "58", default-features = false, features = ["arrow", "snap"] }
+# `bytes::Bytes` is parquet's zero-copy in-memory `ChunkReader` source.
+bytes = "1"
+# Pure-Rust Zarr-v3 *metadata* crate (NOT the full `zarrs` store): parses `zarr.json`
+# array metadata. No async, no object_store, no chunk-IO. A4 reads `zarr.json` + the
+# 1-D coordinate chunks only — never a `c/0/0/0` data chunk.
+zarrs_metadata = "0.7"
+# Pure-Rust zstd decoder for the 1-D coordinate chunks only (no zstd-sys / no C).
+ruzstd = "0.7"
+# Pure-Rust TIFF/GeoTIFF reader, default-features=false (trims OUT every pixel-decode
+# codec). A4 reads georef + band TIFF TAGS only — never a pixel strip/tile. NO GDAL.
+tiff = { version = "0.11", default-features = false }
+
+[dev-dependencies]
+# Writes tiny synthetic parquet/geoparquet fixtures in-test (the metadata reader is
+# exercised end-to-end without committing a synthetic binary). Same major as the
+# runtime `parquet`/`arrow` pins so the writer and reader agree.
+arrow = { version = "58", default-features = false }
+parquet = { version = "58", default-features = false, features = ["arrow", "snap"] }
