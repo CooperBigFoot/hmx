@@ -8,6 +8,8 @@
 use tracing::debug;
 
 pub mod manifest;
+pub mod domains;
+pub mod mappings;
 pub mod registry;
 pub mod readers;
 pub mod types;
