@@ -130,6 +130,16 @@ impl Manifest {
     pub fn artifacts(&self) -> &[Artifact] {
         &self.artifacts
     }
+
+    /// Computes the package content-hash (spec §9, D1).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::CanonicalizeFailed`] if the validated manifest cannot
+    /// be re-serialized into its canonical form — unreachable for a parse-validated manifest.
+    pub fn content_hash(&self) -> Result<crate::hash::ContentHash, CoreError> {
+        crate::hash::content_hash(self)
+    }
 }
 
 #[instrument]

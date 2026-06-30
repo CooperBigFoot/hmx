@@ -8,6 +8,9 @@ thiserror = "2"
 tracing = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Pure-Rust SHA-256 (RustCrypto) for the manifest content-hash (spec §9, D1).
+# NO openssl / ring / C crypto — pure Rust, audited stack.
+sha2 = "0.10"
 # Strict RFC 3339 parsing for manifest `created_at` (spec §3.4). `time` over
 # `chrono` for its strictly-RFC-3339 `well_known::Rfc3339` parser.
 time = { version = "0.3", features = ["parsing", "formatting"] }
