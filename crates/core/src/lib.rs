@@ -1,19 +1,22 @@
 //! `hmx-core` — Hydrology Model Exchange core.
 //!
 //! Module map: [`types`] carries inert domain values, `dto` carries the private
-//! serde layer, [`manifest`] exposes the `manifest.json` parse boundary, and
-//! [`registry`] exposes the typed field registry (D2). [`hash`] computes the
-//! package content-hash; payload readers and verbs land in later steps.
+//! serde layer, [`manifest`] exposes the `manifest.json` parse boundary,
+//! [`registry`] exposes the typed field registry (D2), [`hash`] computes the
+//! package content-hash, and [`validate`] / [`describe`] expose core verbs.
 
 use tracing::debug;
 
 pub mod manifest;
+pub mod describe;
 pub mod domains;
 pub mod hash;
 pub mod mappings;
+pub mod report;
 pub mod registry;
 pub mod readers;
 pub mod types;
+pub mod validate;
 
 mod canonical;
 mod dto;
