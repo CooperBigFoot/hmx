@@ -2,18 +2,20 @@
 //!
 //! Module map: [`types`] carries inert domain values, `dto` carries the private
 //! serde layer, [`manifest`] exposes the `manifest.json` parse boundary, and
-//! [`registry`] exposes the typed field registry (D2). Payload readers, verbs,
-//! and the package content-hash land in later steps.
+//! [`registry`] exposes the typed field registry (D2). [`hash`] computes the
+//! package content-hash; payload readers and verbs land in later steps.
 
 use tracing::debug;
 
 pub mod manifest;
 pub mod domains;
+pub mod hash;
 pub mod mappings;
 pub mod registry;
 pub mod readers;
 pub mod types;
 
+mod canonical;
 mod dto;
 
 /// The compile-time version of `hmx-core` (its `CARGO_PKG_VERSION`).
@@ -206,6 +208,14 @@ pub enum CoreError {
         /// The artifact path/label echoed for diagnostics.
         artifact: String,
         /// What was wrong (missing column, wrong type, null in a required column).
+        detail: String,
+    },
+    /// The validated manifest could not be re-serialized into its canonical form
+    /// for content-hashing (spec §9, D1). Unreachable for a parse-validated
+    /// manifest; present so `content_hash` never panics (no unwrap in library code).
+    #[error("could not canonicalize manifest for content-hash: {detail}")]
+    CanonicalizeFailed {
+        /// The underlying serialization / timestamp-format error message.
         detail: String,
     },
 }
