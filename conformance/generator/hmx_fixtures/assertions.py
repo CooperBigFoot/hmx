@@ -104,6 +104,10 @@ def assert_valid(root: Path, *, minimal: bool) -> None:
         root_json = read_json(root / str(zarr["path"]) / "zarr.json")
         _require("consolidated_metadata" in root_json, f"{root}: zarr root is not consolidated")
     else:
+        layers = _artifact(manifest, "static.layers")
+        with rasterio.open(root / str(layers["path"])) as dataset:
+            _require(dataset.count == 2, f"{root}: multi-band COG band count drift")
+            _require(dataset.dtypes == ("float32", "float32"), f"{root}: multi-band COG dtype drift")
         _require_columns(root, manifest, "mapping.cell_to_reach", {"cell_index": "i64", "reach_id": "i64", "weight": "f64"})
         _require_columns(root, manifest, "mapping.cell_to_gauge", {"cell_index": "i64", "gauge_id": "i64", "weight": "f64"})
         _require_columns(root, manifest, "forcing.gauge", {"timestep": "i64", "gauge_id": "i64", "value": "f64"})

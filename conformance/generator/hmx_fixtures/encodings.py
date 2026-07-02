@@ -141,6 +141,33 @@ def write_cog(path: Path) -> None:
         dataset.write(data, 1)
 
 
+def write_multiband_cog(path: Path) -> None:
+    """Write a small two-band tiled GeoTIFF/COG-readable raster."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = np.array(
+        [
+            [[1.0, 2.0], [3.0, 4.0]],
+            [[101.0, 102.0], [103.0, 104.0]],
+        ],
+        dtype="float32",
+    )
+    with rasterio.open(
+        path,
+        "w",
+        driver="GTiff",
+        height=2,
+        width=2,
+        count=2,
+        dtype="float32",
+        crs="EPSG:32645",
+        transform=from_origin(0.0, 1000.0, 250.0, 250.0),
+        tiled=True,
+        blockxsize=16,
+        blockysize=16,
+    ) as dataset:
+        dataset.write(data)
+
+
 def write_zarr(path: Path) -> None:
     """Write a minimal Zarr v3 group root."""
     path.mkdir(parents=True, exist_ok=True)

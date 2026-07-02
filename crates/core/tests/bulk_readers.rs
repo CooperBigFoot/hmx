@@ -21,6 +21,21 @@ fn real_dudh_dem_cog_surfaces_dimensions_and_epsg_from_tags() {
 }
 
 #[test]
+fn multiband_float32_cog_surfaces_dtype_and_band_count() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/multiband-float32.tif"
+    );
+
+    let meta = read_cog_metadata(path).expect("multi-band float32 COG metadata must read");
+
+    assert_eq!(meta.width(), 4);
+    assert_eq!(meta.height(), 4);
+    assert_eq!(meta.dtype(), "f32");
+    assert_eq!(meta.band_count(), 2);
+}
+
+#[test]
 fn real_dudh_forcing_parquet_surfaces_schema_and_compression() {
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
