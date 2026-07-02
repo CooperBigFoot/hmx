@@ -75,3 +75,51 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Run Rust workspace tests
         run: cargo test --workspace
+
+  conformance:
+    name: conformance suite + Stage A gate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Lint schemas + assert spec version matches schema const
+        run: |
+          uvx check-jsonschema --check-metaschema schemas/*.schema.json
+          grep -Fq '"0.1"' schemas/manifest.schema.json
+          grep -Fq 'format_version' spec/HMX_SPEC.md
+          grep -Fq '0.1' spec/HMX_SPEC.md
+      - name: Regenerate conformance fixtures
+        run: PYTHON=python3.12 conformance/generator/regenerate.sh
+      - name: Conformance Rust tests (byte-compare committed goldens)
+        run: cargo test --workspace
+      - name: Assert committed goldens are byte-stable
+        run: |
+          HMX_BLESS=1 cargo test --test conformance
+          git diff --exit-code -- conformance/goldens
+      - name: Schema-validate committed goldens
+        run: |
+          for g in conformance/goldens/*.describe.json; do
+            [ -e "$g" ] && uvx check-jsonschema --schemafile schemas/describe.schema.json "$g"
+          done
+          for g in conformance/goldens/*.validate.json; do
+            [ -e "$g" ] && uvx check-jsonschema --schemafile schemas/validate.schema.json "$g"
+          done
+      - name: Build hmx + run validator over the suite
+        run: |
+          cargo build -p hmx
+          bin="target/debug/hmx"
+          for d in conformance/valid/*/; do
+            "$bin" validate "$d" >/dev/null || { echo "FAIL: $d not conformant"; exit 1; }
+          done
+          for d in conformance/invalid/*/; do
+            if "$bin" validate "$d" >/dev/null 2>&1; then
+              echo "FAIL: $d validated conformant but must be rejected"; exit 1
+            fi
+          done
+          echo "validator gate green"
