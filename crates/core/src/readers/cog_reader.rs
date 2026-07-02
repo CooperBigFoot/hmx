@@ -136,11 +136,7 @@ pub fn read_cog_metadata(path: impl AsRef<Path>) -> Result<CogMetadata, CoreErro
     })
 }
 
-fn homogeneous_tag_value(
-    artifact: &str,
-    tag_name: &str,
-    values: &[u16],
-) -> Result<u16, CoreError> {
+fn homogeneous_tag_value(artifact: &str, tag_name: &str, values: &[u16]) -> Result<u16, CoreError> {
     let Some(first) = values.first().copied() else {
         return Err(CoreError::CogRead {
             artifact: artifact.to_string(),

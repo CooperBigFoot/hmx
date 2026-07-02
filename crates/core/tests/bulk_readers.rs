@@ -11,7 +11,10 @@ use hmx_core::readers::parquet_meta::read_parquet_metadata;
 
 #[test]
 fn real_dudh_dem_cog_surfaces_dimensions_and_epsg_from_tags() {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/real-dudh/dem.tif");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/real-dudh/dem.tif"
+    );
 
     let meta = read_cog_metadata(path).expect("real Dudh DEM COG metadata must read");
 
@@ -45,11 +48,17 @@ fn real_dudh_forcing_parquet_surfaces_schema_and_compression() {
     let meta = read_parquet_metadata(path).expect("real Dudh forcing metadata must read");
 
     assert_eq!(
-        meta.schema().field_with_name("timestep").unwrap().data_type(),
+        meta.schema()
+            .field_with_name("timestep")
+            .unwrap()
+            .data_type(),
         &DataType::Int64
     );
     assert_eq!(
-        meta.schema().field_with_name("gauge_id").unwrap().data_type(),
+        meta.schema()
+            .field_with_name("gauge_id")
+            .unwrap()
+            .data_type(),
         &DataType::Int64
     );
     assert_eq!(
