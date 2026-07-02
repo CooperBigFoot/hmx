@@ -25,18 +25,66 @@ struct Fixture {
 }
 
 const FIXTURES: [Fixture; 12] = [
-    Fixture { root: "valid", name: "minimal", kind: FixtureKind::Valid },
-    Fixture { root: "valid", name: "real-shape-basin", kind: FixtureKind::Valid },
-    Fixture { root: "invalid", name: "unknown-format-version", kind: FixtureKind::StructuralInvalid },
-    Fixture { root: "invalid", name: "extra-manifest-field", kind: FixtureKind::StructuralInvalid },
-    Fixture { root: "invalid", name: "missing-crs", kind: FixtureKind::StructuralInvalid },
-    Fixture { root: "invalid", name: "cell-to-gauge-missing-variable", kind: FixtureKind::StructuralInvalid },
-    Fixture { root: "invalid", name: "dotdot-substring-path", kind: FixtureKind::ReportInvalid { pinned: "P1" } },
-    Fixture { root: "invalid", name: "malformed-registry", kind: FixtureKind::ReportInvalid { pinned: "R1" } },
-    Fixture { root: "invalid", name: "undeclared-attribute-field", kind: FixtureKind::ReportInvalid { pinned: "R2" } },
-    Fixture { root: "invalid", name: "dangling-mapping-id", kind: FixtureKind::ReportInvalid { pinned: "D1" } },
-    Fixture { root: "invalid", name: "mapping-role-non-mapping-format", kind: FixtureKind::ReportInvalid { pinned: "MAP1" } },
-    Fixture { root: "invalid", name: "missing-required-column", kind: FixtureKind::ReportInvalid { pinned: "F1" } },
+    Fixture {
+        root: "valid",
+        name: "minimal",
+        kind: FixtureKind::Valid,
+    },
+    Fixture {
+        root: "valid",
+        name: "real-shape-basin",
+        kind: FixtureKind::Valid,
+    },
+    Fixture {
+        root: "invalid",
+        name: "unknown-format-version",
+        kind: FixtureKind::StructuralInvalid,
+    },
+    Fixture {
+        root: "invalid",
+        name: "extra-manifest-field",
+        kind: FixtureKind::StructuralInvalid,
+    },
+    Fixture {
+        root: "invalid",
+        name: "missing-crs",
+        kind: FixtureKind::StructuralInvalid,
+    },
+    Fixture {
+        root: "invalid",
+        name: "cell-to-gauge-missing-variable",
+        kind: FixtureKind::StructuralInvalid,
+    },
+    Fixture {
+        root: "invalid",
+        name: "dotdot-substring-path",
+        kind: FixtureKind::ReportInvalid { pinned: "P1" },
+    },
+    Fixture {
+        root: "invalid",
+        name: "malformed-registry",
+        kind: FixtureKind::ReportInvalid { pinned: "R1" },
+    },
+    Fixture {
+        root: "invalid",
+        name: "undeclared-attribute-field",
+        kind: FixtureKind::ReportInvalid { pinned: "R2" },
+    },
+    Fixture {
+        root: "invalid",
+        name: "dangling-mapping-id",
+        kind: FixtureKind::ReportInvalid { pinned: "D1" },
+    },
+    Fixture {
+        root: "invalid",
+        name: "mapping-role-non-mapping-format",
+        kind: FixtureKind::ReportInvalid { pinned: "MAP1" },
+    },
+    Fixture {
+        root: "invalid",
+        name: "missing-required-column",
+        kind: FixtureKind::ReportInvalid { pinned: "F1" },
+    },
 ];
 
 fn repo_root() -> PathBuf {
@@ -49,8 +97,7 @@ fn schema(file: &str) -> PathBuf {
 
 fn load_schema(file: &str) -> Validator {
     let path = schema(file);
-    let raw =
-        fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let document: Value =
         serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{file} must be valid JSON: {e}"));
     jsonschema::validator_for(&document)
@@ -58,7 +105,8 @@ fn load_schema(file: &str) -> Validator {
 }
 
 fn stdout_as_json(stdout: &[u8], what: &str) -> Value {
-    serde_json::from_slice(stdout).unwrap_or_else(|e| panic!("{what} stdout is not valid JSON: {e}"))
+    serde_json::from_slice(stdout)
+        .unwrap_or_else(|e| panic!("{what} stdout is not valid JSON: {e}"))
 }
 
 fn run_hmx(args: &[&str]) -> (i32, Vec<u8>) {
@@ -104,7 +152,9 @@ fn assert_or_bless(path: &Path, stdout: &[u8]) {
 }
 
 fn generated_fixtures_exist() -> bool {
-    repo_root().join("conformance/valid/minimal/manifest.json").exists()
+    repo_root()
+        .join("conformance/valid/minimal/manifest.json")
+        .exists()
 }
 
 fn directory_names(root: &Path) -> BTreeSet<String> {
@@ -148,7 +198,11 @@ fn assert_all_checks_pass(value: &Value, fixture: &str) {
         .get("checks")
         .and_then(Value::as_array)
         .unwrap_or_else(|| panic!("{fixture}: checks must be an array"));
-    assert_eq!(checks.len(), ALL_CHECK_IDS.len(), "{fixture}: check count drift");
+    assert_eq!(
+        checks.len(),
+        ALL_CHECK_IDS.len(),
+        "{fixture}: check count drift"
+    );
     for (check, expected_id) in checks.iter().zip(ALL_CHECK_IDS) {
         assert_eq!(check.get("id").and_then(Value::as_str), Some(expected_id));
         assert_eq!(check.get("status").and_then(Value::as_str), Some("ran"));
@@ -157,7 +211,10 @@ fn assert_all_checks_pass(value: &Value, fixture: &str) {
 }
 
 fn assert_pinned_only_fails(value: &Value, pinned: &str, fixture: &str) {
-    assert_eq!(value.get("conformant").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        value.get("conformant").and_then(Value::as_bool),
+        Some(false)
+    );
     let checks = value
         .get("checks")
         .and_then(Value::as_array)
@@ -165,10 +222,19 @@ fn assert_pinned_only_fails(value: &Value, pinned: &str, fixture: &str) {
     let mut failures = Vec::new();
     for check in checks {
         if check.get("result").and_then(Value::as_str) == Some("fail") {
-            failures.push(check.get("id").and_then(Value::as_str).unwrap_or("<missing>"));
+            failures.push(
+                check
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .unwrap_or("<missing>"),
+            );
         }
     }
-    assert_eq!(failures, vec![pinned], "{fixture}: collateral check failure");
+    assert_eq!(
+        failures,
+        vec![pinned],
+        "{fixture}: collateral check failure"
+    );
 }
 
 #[test]
@@ -188,19 +254,28 @@ fn generated_conformance_suite_matches_goldens() {
             FixtureKind::Valid => {
                 let (describe_code, describe_stdout) = run_hmx(&["describe", &package]);
                 assert_eq!(describe_code, 0, "{package} describe must exit 0");
-                validate_schema(&describe_validator, &describe_stdout, &format!("{package} describe"));
+                validate_schema(
+                    &describe_validator,
+                    &describe_stdout,
+                    &format!("{package} describe"),
+                );
                 assert_or_bless(&golden_path(fixture, "describe"), &describe_stdout);
 
                 let (validate_code, validate_stdout) = run_hmx(&["validate", &package]);
                 assert_eq!(validate_code, 0, "{package} validate must exit 0");
-                let value = validate_schema(&validate_validator, &validate_stdout, &format!("{package} validate"));
+                let value = validate_schema(
+                    &validate_validator,
+                    &validate_stdout,
+                    &format!("{package} validate"),
+                );
                 assert_all_checks_pass(&value, &package);
                 assert_or_bless(&golden_path(fixture, "validate"), &validate_stdout);
             }
             FixtureKind::ReportInvalid { pinned } => {
                 let (code, stdout) = run_hmx(&["validate", &package]);
                 assert_eq!(code, 1, "{package} validate must exit 1");
-                let value = validate_schema(&validate_validator, &stdout, &format!("{package} validate"));
+                let value =
+                    validate_schema(&validate_validator, &stdout, &format!("{package} validate"));
                 assert_pinned_only_fails(&value, pinned, &package);
                 assert_or_bless(&golden_path(fixture, "validate"), &stdout);
             }
