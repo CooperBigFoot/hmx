@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "hmx"
-description = "PyO3 binding for hmx-core (Hydrology Model Exchange) — skeleton; validate/describe land in A10."
+description = "PyO3 binding for hmx-core (Hydrology Model Exchange): validate/describe thin shell."
 # Matches the abi3-py312 floor pinned in Cargo.toml: a single abi3 wheel imports
 # on CPython 3.12 and later.
 requires-python = ">=3.12"
