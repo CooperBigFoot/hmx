@@ -31,6 +31,7 @@ GRID = {
 SHA_BY_ROLE = {
     "registry.fields": "00" * 32,
     "static.dem": "44" * 32,
+    "static.layers": "aa" * 32,
     "mapping.cell_to_glacier": "11" * 32,
     "mapping.cell_to_reach": "55" * 32,
     "mapping.cell_to_gauge": "66" * 32,
@@ -44,6 +45,7 @@ SHA_BY_ROLE = {
 SIZE_BY_ROLE = {
     "registry.fields": 512,
     "static.dem": 1024,
+    "static.layers": 1024,
     "mapping.cell_to_glacier": 2498,
     "mapping.cell_to_reach": 2498,
     "mapping.cell_to_gauge": 2498,

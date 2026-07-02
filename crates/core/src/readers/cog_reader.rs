@@ -19,6 +19,7 @@ pub struct CogMetadata {
     width: u32,
     height: u32,
     dtype: String,
+    band_count: u16,
     crs_epsg: Option<u32>,
     pixel_scale: Option<(f64, f64)>,
 }
@@ -37,6 +38,11 @@ impl CogMetadata {
     /// Returns the sample dtype inferred from SampleFormat and BitsPerSample.
     pub fn dtype(&self) -> &str {
         &self.dtype
+    }
+
+    /// Returns the band count from SamplesPerPixel.
+    pub fn band_count(&self) -> u16 {
+        self.band_count
     }
 
     /// Returns the inline EPSG code from GeoKeyDirectory, when present.
@@ -74,18 +80,30 @@ pub fn read_cog_metadata(path: impl AsRef<Path>) -> Result<CogMetadata, CoreErro
         artifact: artifact.clone(),
         detail: format!("dimensions unreadable: {e}"),
     })?;
-    let sample_format: u16 = decoder
-        .find_tag_unsigned(Tag::SampleFormat)
-        .ok()
-        .flatten()
+    let band_count = decoder
+        .find_tag_unsigned(Tag::SamplesPerPixel)
+        .map_err(|e| CoreError::CogRead {
+            artifact: artifact.clone(),
+            detail: format!("SamplesPerPixel tag unreadable: {e}"),
+        })?
         .unwrap_or(1);
-    let bits_per_sample: u16 =
+    let sample_format_values = decoder
+        .find_tag_unsigned_vec(Tag::SampleFormat)
+        .map_err(|e| CoreError::CogRead {
+            artifact: artifact.clone(),
+            detail: format!("SampleFormat tag unreadable: {e}"),
+        })?
+        .unwrap_or_else(|| vec![1]);
+    let sample_format = homogeneous_tag_value(&artifact, "SampleFormat", &sample_format_values)?;
+    let bits_per_sample_values =
         decoder
-            .get_tag_unsigned(Tag::BitsPerSample)
+            .get_tag_u16_vec(Tag::BitsPerSample)
             .map_err(|e| CoreError::CogRead {
                 artifact: artifact.clone(),
                 detail: format!("BitsPerSample tag unreadable: {e}"),
             })?;
+    let bits_per_sample =
+        homogeneous_tag_value(&artifact, "BitsPerSample", &bits_per_sample_values)?;
     let dtype = geotiff_dtype(sample_format, bits_per_sample);
     let crs_epsg = decoder
         .get_tag_u16_vec(Tag::GeoKeyDirectoryTag)
@@ -103,6 +121,7 @@ pub fn read_cog_metadata(path: impl AsRef<Path>) -> Result<CogMetadata, CoreErro
         width,
         height,
         dtype = %dtype,
+        band_count,
         crs_epsg = crs_epsg.unwrap_or(0),
         "read COG metadata"
     );
@@ -111,9 +130,26 @@ pub fn read_cog_metadata(path: impl AsRef<Path>) -> Result<CogMetadata, CoreErro
         width,
         height,
         dtype,
+        band_count,
         crs_epsg,
         pixel_scale,
     })
+}
+
+fn homogeneous_tag_value(artifact: &str, tag_name: &str, values: &[u16]) -> Result<u16, CoreError> {
+    let Some(first) = values.first().copied() else {
+        return Err(CoreError::CogRead {
+            artifact: artifact.to_string(),
+            detail: format!("{tag_name} tag unreadable: no values"),
+        });
+    };
+    if values.iter().any(|value| *value != first) {
+        return Err(CoreError::CogRead {
+            artifact: artifact.to_string(),
+            detail: format!("{tag_name} values differ across bands: {values:?}"),
+        });
+    }
+    Ok(first)
 }
 
 fn geotiff_dtype(sample_format: u16, bits: u16) -> String {

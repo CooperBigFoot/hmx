@@ -11,13 +11,31 @@ use hmx_core::readers::parquet_meta::read_parquet_metadata;
 
 #[test]
 fn real_dudh_dem_cog_surfaces_dimensions_and_epsg_from_tags() {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/real-dudh/dem.tif");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/real-dudh/dem.tif"
+    );
 
     let meta = read_cog_metadata(path).expect("real Dudh DEM COG metadata must read");
 
     assert_eq!(meta.width(), 302);
     assert_eq!(meta.height(), 477);
     assert_eq!(meta.crs_epsg(), Some(32645));
+}
+
+#[test]
+fn multiband_float32_cog_surfaces_dtype_and_band_count() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/multiband-float32.tif"
+    );
+
+    let meta = read_cog_metadata(path).expect("multi-band float32 COG metadata must read");
+
+    assert_eq!(meta.width(), 4);
+    assert_eq!(meta.height(), 4);
+    assert_eq!(meta.dtype(), "f32");
+    assert_eq!(meta.band_count(), 2);
 }
 
 #[test]
@@ -30,11 +48,17 @@ fn real_dudh_forcing_parquet_surfaces_schema_and_compression() {
     let meta = read_parquet_metadata(path).expect("real Dudh forcing metadata must read");
 
     assert_eq!(
-        meta.schema().field_with_name("timestep").unwrap().data_type(),
+        meta.schema()
+            .field_with_name("timestep")
+            .unwrap()
+            .data_type(),
         &DataType::Int64
     );
     assert_eq!(
-        meta.schema().field_with_name("gauge_id").unwrap().data_type(),
+        meta.schema()
+            .field_with_name("gauge_id")
+            .unwrap()
+            .data_type(),
         &DataType::Int64
     );
     assert_eq!(

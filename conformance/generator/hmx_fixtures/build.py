@@ -14,6 +14,7 @@ from hmx_fixtures.encodings import (
     write_domain_mapping,
     write_gauge_long,
     write_gauge_metadata,
+    write_multiband_cog,
     write_reach_topology,
     write_zarr,
 )
@@ -74,6 +75,7 @@ def emit_real_shape_basin(root: Path) -> None:
         ],
     )
     write_cog(root / "static/dem.tif")
+    write_multiband_cog(root / "static/layers.tif")
     write_domain_mapping(root / "mappings/cell_to_glacier.parquet")
     write_domain_attributes(root / "attributes/glacier.parquet")
     write_cell_to_reach(root / "mappings/cell_to_reach.parquet")
@@ -114,6 +116,7 @@ def emit_real_shape_basin(root: Path) -> None:
         artifacts=[
             artifact("registry.fields", "registry/fields.json", "hmx/field_registry_v1"),
             artifact("static.dem", "static/dem.tif", "cog", crs="EPSG:32645"),
+            artifact("static.layers", "static/layers.tif", "cog", crs="EPSG:32645"),
             artifact("mapping.cell_to_reach", "mappings/cell_to_reach.parquet", "parquet/cell_to_reach_v1"),
             artifact("attributes.reach", "topology/reaches.parquet", "geoparquet/reach_topology_v1", domain="reach"),
             artifact("mapping.cell_to_gauge", "mappings/cell_to_gauge.parquet", "parquet/cell_to_gauge_v1"),
