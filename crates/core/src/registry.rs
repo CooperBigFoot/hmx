@@ -8,8 +8,8 @@ use tracing::{debug, instrument, warn};
 
 use crate::CoreError;
 use crate::types::{
-    ConservationClass, DomainId, Extent, FieldId, FieldTimeMeaning, Quantity, SemanticRole, Units,
-    ValueType,
+    ConservationClass, DomainId, Extent, FieldId, FieldTimeMeaning, LayerCount, Quantity,
+    SemanticRole, Units, ValueType,
 };
 
 #[derive(Debug, Deserialize)]
@@ -31,6 +31,7 @@ struct FieldDto {
     role: String,
     conservation_class: String,
     extent: String,
+    layer_count: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,6 +73,7 @@ pub struct FieldSpec {
     role: SemanticRole,
     conservation_class: ConservationClass,
     extent: Extent,
+    layer_count: Option<LayerCount>,
 }
 
 impl FieldSpec {
@@ -109,6 +111,10 @@ impl FieldSpec {
 
     pub fn extent(&self) -> Extent {
         self.extent
+    }
+
+    pub fn layer_count(&self) -> Option<LayerCount> {
+        self.layer_count
     }
 }
 
@@ -182,8 +188,12 @@ impl FieldRegistry {
 }
 
 fn parse_field(dto: FieldDto) -> Result<FieldSpec, CoreError> {
+    let id = FieldId::new(require_non_empty(dto.id, "field.id")?);
+    let extent = dto.extent.parse::<Extent>()?;
+    let layer_count = parse_layer_count(&id, extent, dto.layer_count)?;
+
     Ok(FieldSpec {
-        id: FieldId::new(require_non_empty(dto.id, "field.id")?),
+        id,
         domain: DomainId::new(require_non_empty(dto.domain, "field.domain")?),
         quantity: Quantity::new(require_non_empty(dto.quantity, "field.quantity")?),
         units: Units::new(require_non_empty(dto.units, "field.units")?),
@@ -191,8 +201,28 @@ fn parse_field(dto: FieldDto) -> Result<FieldSpec, CoreError> {
         time_meaning: dto.time_meaning.parse::<FieldTimeMeaning>()?,
         role: dto.role.parse::<SemanticRole>()?,
         conservation_class: dto.conservation_class.parse::<ConservationClass>()?,
-        extent: dto.extent.parse::<Extent>()?,
+        extent,
+        layer_count,
     })
+}
+
+fn parse_layer_count(
+    id: &FieldId,
+    extent: Extent,
+    layer_count: Option<usize>,
+) -> Result<Option<LayerCount>, CoreError> {
+    match (extent, layer_count) {
+        (Extent::Scalar, None) => Ok(None),
+        (Extent::Scalar, Some(_)) => Err(CoreError::InvalidLayerCount {
+            id: id.as_str().to_string(),
+            detail: "a scalar field must not carry layer_count".to_string(),
+        }),
+        (Extent::PerLayer, None) => Err(CoreError::InvalidLayerCount {
+            id: id.as_str().to_string(),
+            detail: "a per_layer field requires layer_count".to_string(),
+        }),
+        (Extent::PerLayer, Some(value)) => LayerCount::new(value, id).map(Some),
+    }
 }
 
 fn require_non_empty(value: String, field: &'static str) -> Result<String, CoreError> {
@@ -254,7 +284,7 @@ mod tests {
     use crate::CoreError;
     use crate::registry::{FieldRegistry, RegistryVersion};
     use crate::types::{
-        ConservationClass, Extent, FieldId, FieldTimeMeaning, SemanticRole, ValueType,
+        ConservationClass, Extent, FieldId, FieldTimeMeaning, LayerCount, SemanticRole, ValueType,
     };
 
     const VALID_REGISTRY: &str =
@@ -270,10 +300,10 @@ mod tests {
         let registry = parse_valid();
 
         assert_eq!(registry.registry_version(), RegistryVersion::V1);
-        assert_eq!(registry.len(), 3);
+        assert_eq!(registry.len(), 4);
         assert!(!registry.is_empty());
         assert!(registry.contains(&FieldId::new("cells.flow_dir")));
-        assert_eq!(registry.iter().count(), 3);
+        assert_eq!(registry.iter().count(), 4);
 
         let glacier = registry
             .get(&FieldId::new("glacier.ice_volume_m3"))
@@ -294,6 +324,54 @@ mod tests {
         assert_eq!(flow_dir.role(), SemanticRole::Parameter);
         assert_eq!(flow_dir.conservation_class(), ConservationClass::None);
         assert_eq!(flow_dir.value_type(), ValueType::I32);
+
+        let layered = registry
+            .get(&FieldId::new("cells.soil_layer_capacity_mm"))
+            .unwrap_or_else(|| panic!("expected cells.soil_layer_capacity_mm"));
+        assert_eq!(layered.extent(), Extent::PerLayer);
+        assert_eq!(layered.layer_count().map(LayerCount::get), Some(3));
+    }
+
+    #[test]
+    fn per_layer_requires_layer_count() {
+        match parse_err(replace_once(
+            r#""extent": "scalar" }"#,
+            r#""extent": "per_layer" }"#,
+        )) {
+            CoreError::InvalidLayerCount { id, detail } => {
+                assert_eq!(id, "cells.snow_water_equivalent_m3");
+                assert!(detail.contains("requires layer_count"));
+            }
+            other => panic!("expected InvalidLayerCount, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn per_layer_rejects_zero_layer_count() {
+        match parse_err(replace_once(
+            r#""extent": "scalar" }"#,
+            r#""extent": "per_layer", "layer_count": 0 }"#,
+        )) {
+            CoreError::InvalidLayerCount { id, detail } => {
+                assert_eq!(id, "cells.snow_water_equivalent_m3");
+                assert!(detail.contains("positive"));
+            }
+            other => panic!("expected InvalidLayerCount, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn scalar_forbids_layer_count() {
+        match parse_err(replace_once(
+            r#""extent": "scalar" }"#,
+            r#""extent": "scalar", "layer_count": 3 }"#,
+        )) {
+            CoreError::InvalidLayerCount { id, detail } => {
+                assert_eq!(id, "cells.snow_water_equivalent_m3");
+                assert!(detail.contains("must not carry layer_count"));
+            }
+            other => panic!("expected InvalidLayerCount, got {other:?}"),
+        }
     }
 
     #[test]

@@ -62,6 +62,31 @@ string_newtype!(RelativePath);
 string_newtype!(Quantity);
 string_newtype!(Units);
 
+/// A positive registry-owned count of parameter layers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LayerCount(usize);
+
+impl LayerCount {
+    /// Constructs a positive layer count.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::InvalidLayerCount`] when `value` is zero.
+    pub(crate) fn new(value: usize, id: &FieldId) -> Result<Self, CoreError> {
+        if value == 0 {
+            return Err(CoreError::InvalidLayerCount {
+                id: id.as_str().to_string(),
+                detail: "layer_count must be a positive integer".to_string(),
+            });
+        }
+        Ok(Self(value))
+    }
+
+    pub fn get(self) -> usize {
+        self.0
+    }
+}
+
 macro_rules! closed_enum {
     ($name:ident, $field:literal, [$(($variant:ident, $value:literal)),+ $(,)?]) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
