@@ -8,7 +8,9 @@ use std::process::Command;
 use jsonschema::Validator;
 use serde_json::Value;
 
-const ALL_CHECK_IDS: [&str; 9] = ["M1", "M2", "M3", "P1", "R1", "R2", "D1", "MAP1", "F1"];
+const ALL_CHECK_IDS: [&str; 10] = [
+    "M1", "M2", "M3", "P1", "R1", "R2", "D1", "MAP1", "F1", "PARAM1",
+];
 
 #[derive(Debug, Clone, Copy)]
 enum FixtureKind {
@@ -24,7 +26,7 @@ struct Fixture {
     kind: FixtureKind,
 }
 
-const FIXTURES: [Fixture; 12] = [
+const FIXTURES: [Fixture; 16] = [
     Fixture {
         root: "valid",
         name: "minimal",
@@ -33,6 +35,11 @@ const FIXTURES: [Fixture; 12] = [
     Fixture {
         root: "valid",
         name: "real-shape-basin",
+        kind: FixtureKind::Valid,
+    },
+    Fixture {
+        root: "valid",
+        name: "parameter-scalars",
         kind: FixtureKind::Valid,
     },
     Fixture {
@@ -84,6 +91,21 @@ const FIXTURES: [Fixture; 12] = [
         root: "invalid",
         name: "missing-required-column",
         kind: FixtureKind::ReportInvalid { pinned: "F1" },
+    },
+    Fixture {
+        root: "invalid",
+        name: "parameter-scalars-unknown-field",
+        kind: FixtureKind::ReportInvalid { pinned: "PARAM1" },
+    },
+    Fixture {
+        root: "invalid",
+        name: "parameter-scalars-non-parameter-field",
+        kind: FixtureKind::ReportInvalid { pinned: "PARAM1" },
+    },
+    Fixture {
+        root: "invalid",
+        name: "parameter-scalars-duplicate-raster-source",
+        kind: FixtureKind::ReportInvalid { pinned: "PARAM1" },
     },
 ];
 

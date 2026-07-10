@@ -5,10 +5,14 @@ from pathlib import Path
 import json
 import shutil
 
+import pyarrow as pa
+import pyarrow.parquet as pq
+
 from hmx_fixtures import get_logger
 from hmx_fixtures.assertions import assert_invalid_diff
-from hmx_fixtures.encodings import write_domain_attributes, write_domain_mapping, write_gauge_long
+from hmx_fixtures.encodings import write_domain_mapping, write_gauge_long
 from hmx_fixtures.manifest import write_manifest
+from hmx_fixtures.parameter_scalars import write_parameter_scalars
 
 
 class Invalid(Enum):
@@ -24,6 +28,9 @@ class Invalid(Enum):
     DANGLING_MAPPING_ID = ("dangling-mapping-id", "D1", 1, "minimal")
     MAPPING_ROLE_NON_MAPPING_FORMAT = ("mapping-role-non-mapping-format", "MAP1", 1, "real-shape-basin")
     MISSING_REQUIRED_COLUMN = ("missing-required-column", "F1", 1, "real-shape-basin")
+    PARAMETER_SCALARS_UNKNOWN_FIELD = ("parameter-scalars-unknown-field", "PARAM1", 1, "parameter-scalars")
+    PARAMETER_SCALARS_NON_PARAMETER_FIELD = ("parameter-scalars-non-parameter-field", "PARAM1", 1, "parameter-scalars")
+    PARAMETER_SCALARS_DUPLICATE_RASTER_SOURCE = ("parameter-scalars-duplicate-raster-source", "PARAM1", 1, "parameter-scalars")
 
     @property
     def folder(self) -> str:
@@ -99,7 +106,23 @@ def derive_invalid(valid_root: Path, invalid_root: Path, invalid: Invalid) -> No
         registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
         expected = {"registry/fields.json"}
     elif invalid is Invalid.UNDECLARED_ATTRIBUTE_FIELD:
-        write_domain_attributes(target / "attributes/glacier.parquet", "glacier.undeclared")
+        path = target / "attributes/glacier.parquet"
+        table = pq.read_table(path, partitioning=None)
+        table = table.append_column(
+            "glacier.undeclared",
+            pa.array([1.0, 2.0, 3.0], type=pa.float64()),
+        )
+        pq.write_table(
+            table,
+            path,
+            compression="NONE",
+            use_dictionary=False,
+            write_statistics=True,
+            coerce_timestamps=None,
+        )
+        rewritten = pq.read_schema(path)
+        assert "glacier.thickness_m_we" in rewritten.names
+        assert "glacier.undeclared" in rewritten.names
         expected = {"attributes/glacier.parquet"}
     elif invalid is Invalid.DANGLING_MAPPING_ID:
         write_domain_mapping(target / "mappings/cell_to_glacier.parquet", [0, 1, 99])
@@ -112,6 +135,22 @@ def derive_invalid(valid_root: Path, invalid_root: Path, invalid: Invalid) -> No
     elif invalid is Invalid.MISSING_REQUIRED_COLUMN:
         write_gauge_long(target / "forcing/gauge_long.parquet", include_value=False)
         expected = {"forcing/gauge_long.parquet"}
+    elif invalid in {
+        Invalid.PARAMETER_SCALARS_UNKNOWN_FIELD,
+        Invalid.PARAMETER_SCALARS_NON_PARAMETER_FIELD,
+        Invalid.PARAMETER_SCALARS_DUPLICATE_RASTER_SOURCE,
+    }:
+        scalars_path = target / "parameter/scalars.json"
+        scalars = json.loads(scalars_path.read_text(encoding="utf-8"))
+        additions = {
+            Invalid.PARAMETER_SCALARS_UNKNOWN_FIELD: ("cell.unknown", 1.0),
+            Invalid.PARAMETER_SCALARS_NON_PARAMETER_FIELD: ("cell.air_temperature_c", -2.0),
+            Invalid.PARAMETER_SCALARS_DUPLICATE_RASTER_SOURCE: ("cell.spatial_coefficient", 0.75),
+        }
+        key, value = additions[invalid]
+        scalars[key] = value
+        write_parameter_scalars(scalars_path, scalars)
+        expected = {"parameter/scalars.json"}
     else:
         raise AssertionError(invalid)
 

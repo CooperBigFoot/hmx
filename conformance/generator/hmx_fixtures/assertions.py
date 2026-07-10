@@ -128,6 +128,39 @@ def assert_valid(root: Path, *, minimal: bool) -> None:
         )
 
 
+def assert_parameter_scalars_valid(root: Path) -> None:
+    """Assert the scalar/per-layer parameter baseline."""
+    manifest = read_json(root / "manifest.json")
+    _require(list(manifest.keys()) == MANIFEST_FIELDS, f"{root}: manifest field order/shape drift")
+    _require(manifest["mappings"] == [], f"{root}: mappings must be empty")
+    domains = manifest["domains"]
+    _require(isinstance(domains, list) and domains[0]["entity_count"] == 1, f"{root}: not one-cell")
+
+    registry = read_json(root / "registry/fields.json")
+    fields = {item["id"]: item for item in registry["fields"]}  # type: ignore[index]
+    _require(fields["cell.snow_melt_threshold_c"]["role"] == "parameter", f"{root}: scalar role")
+    _require(fields["cell.snow_melt_threshold_c"]["extent"] == "scalar", f"{root}: scalar extent")
+    layers = fields["cell.soil_layer_capacity_mm"]
+    _require(layers["role"] == "parameter", f"{root}: layered role")
+    _require(layers["extent"] == "per_layer" and layers["layer_count"] == 3, f"{root}: layers")
+    _require(fields["cell.spatial_coefficient"]["role"] == "parameter", f"{root}: raster role")
+    _require(fields["cell.air_temperature_c"]["role"] == "forcing", f"{root}: forcing role")
+
+    scalar_artifact = _artifact(manifest, "parameter.scalars")
+    _require(scalar_artifact["format"] == "hmx/parameter_scalars_v1", f"{root}: scalar format")
+    scalars = read_json(root / str(scalar_artifact["path"]))
+    _require(scalars == {
+        "cell.snow_melt_threshold_c": 0.5,
+        "cell.soil_layer_capacity_mm": [100.0, 150.0, 200.0],
+    }, f"{root}: scalar values")
+
+    raster = _artifact(manifest, "parameter.spatial_coefficient")
+    _require(raster["format"] == "cog", f"{root}: raster format")
+    _require(raster["variable"] == "cell.spatial_coefficient", f"{root}: raster variable")
+    with rasterio.open(root / str(raster["path"])) as dataset:
+        _require(dataset.read(1).size > 0, f"{root}: raster unreadable")
+
+
 def relative_files(root: Path) -> set[str]:
     """Return relative file paths under root."""
     return {

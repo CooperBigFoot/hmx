@@ -25,6 +25,8 @@ pub enum CheckId {
     MAP1,
     /// Declared non-registry artifacts open and carry required columns (spec §7).
     F1,
+    /// Every registry parameter has exactly one scalar or physical source (spec §7.3/§11).
+    PARAM1,
 }
 
 impl CheckId {
@@ -39,12 +41,13 @@ impl CheckId {
             Self::D1 => "D1",
             Self::MAP1 => "MAP1",
             Self::F1 => "F1",
+            Self::PARAM1 => "PARAM1",
         }
     }
 }
 
 /// Full ordered HMX 0.2 checklist in spec order.
-pub const ALL_CHECK_IDS: [CheckId; 9] = [
+pub const ALL_CHECK_IDS: [CheckId; 10] = [
     CheckId::M1,
     CheckId::M2,
     CheckId::M3,
@@ -54,6 +57,7 @@ pub const ALL_CHECK_IDS: [CheckId; 9] = [
     CheckId::D1,
     CheckId::MAP1,
     CheckId::F1,
+    CheckId::PARAM1,
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -20,6 +20,7 @@
   ],
   "mappings": [],
   "artifacts": [
-    { "role": "registry.fields", "path": "registry/fields.json", "format": "hmx/field_registry_v1", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size_bytes": 512 }
+    { "role": "registry.fields", "path": "registry/fields.json", "format": "hmx/field_registry_v1", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size_bytes": 512 },
+    { "role": "parameter.scalars", "path": "parameter/scalars.json", "format": "hmx/parameter_scalars_v1", "sha256": "c3492147abfe8d49bf2e91c6008445419ca0913c0ce0d7df6bdb399872046f66", "size_bytes": 26 }
   ]
 }

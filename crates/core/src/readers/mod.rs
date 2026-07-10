@@ -1,8 +1,8 @@
 //! Typed payload readers for HMX spec §7.
 //!
-//! These readers surface schemas, row-group metadata, GeoTIFF tags, and bounded
-//! 1-D coordinate chunks. They do not decode parquet data pages, COG pixels,
-//! GeoParquet geometry blobs, or multi-dimensional Zarr data chunks.
+//! Bulk readers surface schemas, row-group metadata, GeoTIFF tags, and bounded
+//! 1-D coordinate chunks without decoding payloads. Small control JSON readers
+//! decode and return typed values.
 
 use std::path::Path;
 
