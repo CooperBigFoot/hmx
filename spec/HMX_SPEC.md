@@ -274,6 +274,7 @@ one `--replace` or `--set` mutation MUST be supplied. A successful command MUST
 materialize at `out` a complete, standalone HMX package with a complete manifest
 and artifact tree. It MUST NOT add `base`, `extends`, `delta`, provenance, or any
 other lineage field to the manifest.
+Duplicate mutation targets and conflicting mutations resolving to the same scalar key or replacement artifact MUST be rejected, and last-write-wins behavior MUST NOT be used.
 
 10.6 Each mutation argument MUST be split at its first `=`. Its left side MUST
 be preserved byte-for-byte as the candidate `FieldId` and resolved only through
@@ -344,6 +345,7 @@ content-hash keys `algo`, `value`; and replacement keys `artifact_role`,
 `FieldId` order. `replaced` entries MUST be sorted in ascending bytewise
 `artifact_role` order, using their sorted `field_ids` arrays as the tie-breaker.
 The serialized value MUST end with exactly one newline.
+`tool_version` MUST equal the hmx CLI package version compiled into the executable as `CARGO_PKG_VERSION`.
 
 Each invocation MUST create a fresh RFC 3339 UTC `created_at` timestamp.
 Consequently, separate runs of the same derivation are not byte-stable. Within
