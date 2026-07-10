@@ -11,6 +11,7 @@
 //! `--strict`; the wire schema keeps `id` as a free string with the Rust
 //! [`CheckId`] enum as the closed set; every HMX 0.2 check is `metadata_deep`.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use tracing::{info, instrument};
@@ -21,13 +22,14 @@ use crate::mappings::MappingGeometry;
 use crate::readers::cog_reader::read_cog_metadata;
 use crate::readers::control_plane::read_domain_attributes;
 use crate::readers::geoparquet_reader::read_geoparquet_metadata;
+use crate::readers::parameter_scalars_reader::read_parameter_scalars;
 use crate::readers::parquet_meta::read_parquet_metadata;
 use crate::readers::zarr_reader::read_zarr_metadata;
 use crate::registry::FieldRegistry;
 use crate::report::{
     ALL_CHECK_IDS, CheckId, CheckOutcome, DepthClass, ValidateError, ValidationReport,
 };
-use crate::types::{Artifact, ArtifactFormat, ArtifactRole, FieldId};
+use crate::types::{Artifact, ArtifactFormat, ArtifactRole, FieldId, SemanticRole};
 
 #[instrument(fields(package_root = %package_root.as_ref().display()))]
 pub fn validate(package_root: impl AsRef<Path>) -> Result<ValidationReport, ValidateError> {
@@ -74,6 +76,7 @@ fn run_check(
         CheckId::D1 => check_d1(package_root, manifest),
         CheckId::MAP1 => check_map1(manifest),
         CheckId::F1 => check_f1(package_root, manifest),
+        CheckId::PARAM1 => check_param1(package_root, manifest, registry),
     }
 }
 
@@ -236,6 +239,102 @@ fn check_f1(package_root: &Path, manifest: &Manifest) -> CheckOutcome {
         }
     }
     CheckOutcome::ran_pass(CheckId::F1, DepthClass::MetadataDeep)
+}
+
+fn check_param1(
+    package_root: &Path,
+    manifest: &Manifest,
+    registry: Option<&Result<FieldRegistry, String>>,
+) -> CheckOutcome {
+    let registry = match registry {
+        Some(Ok(registry)) => registry,
+        Some(Err(_)) | None => {
+            return CheckOutcome::skipped(
+                CheckId::PARAM1,
+                DepthClass::MetadataDeep,
+                "R1 failed; no parsed registry is available",
+            );
+        }
+    };
+    let mut source_counts = BTreeMap::<FieldId, usize>::new();
+
+    for artifact in manifest.artifacts() {
+        if artifact.format == ArtifactFormat::ParameterScalarsV1 {
+            let path = package_root.join(artifact.path.as_str());
+            let scalars = match read_parameter_scalars(&path, registry) {
+                Ok(scalars) => scalars,
+                Err(err) => {
+                    return CheckOutcome::ran_fail(
+                        CheckId::PARAM1,
+                        DepthClass::MetadataDeep,
+                        format!("{}: {err}", artifact.path.as_str()),
+                    );
+                }
+            };
+            for (field_id, _) in scalars.iter() {
+                *source_counts.entry(field_id.clone()).or_default() += 1;
+            }
+        }
+
+        if artifact.format == ArtifactFormat::ParquetDomainAttributesV1 {
+            let path = package_root.join(artifact.path.as_str());
+            let attributes = match read_domain_attributes(&path) {
+                Ok(attributes) => attributes,
+                Err(err) => {
+                    return CheckOutcome::ran_fail(
+                        CheckId::PARAM1,
+                        DepthClass::MetadataDeep,
+                        format!("{}: {err}", artifact.path.as_str()),
+                    );
+                }
+            };
+            for attribute in attributes.attributes() {
+                count_parameter_source(
+                    &mut source_counts,
+                    registry,
+                    FieldId::new(attribute.field_id()),
+                );
+            }
+        } else if let Some(variable) = &artifact.variable {
+            count_parameter_source(
+                &mut source_counts,
+                registry,
+                FieldId::new(variable.as_str()),
+            );
+        }
+    }
+
+    for field in registry
+        .iter()
+        .filter(|field| field.role() == SemanticRole::Parameter)
+    {
+        let count = source_counts.get(field.id()).copied().unwrap_or_default();
+        if count != 1 {
+            return CheckOutcome::ran_fail(
+                CheckId::PARAM1,
+                DepthClass::MetadataDeep,
+                format!(
+                    "parameter field {:?} has {count} sources; expected exactly one",
+                    field.id().as_str()
+                ),
+            );
+        }
+    }
+
+    CheckOutcome::ran_pass(CheckId::PARAM1, DepthClass::MetadataDeep)
+}
+
+fn count_parameter_source(
+    source_counts: &mut BTreeMap<FieldId, usize>,
+    registry: &FieldRegistry,
+    field_id: FieldId,
+) {
+    if registry
+        .get(&field_id)
+        .is_some_and(|field| field.role() == SemanticRole::Parameter)
+    {
+        *source_counts.entry(field_id).or_default() += 1;
+    }
 }
 
 fn check_artifact_shape(package_root: &Path, artifact: &Artifact) -> Result<(), String> {

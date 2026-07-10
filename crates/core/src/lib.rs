@@ -154,6 +154,58 @@ pub enum CoreError {
         /// The raw serde_json error message.
         detail: String,
     },
+    /// A registry field's `layer_count` disagrees with its extent or is not positive.
+    #[error("field {id:?} has an invalid extent/layer_count relationship: {detail}")]
+    InvalidLayerCount {
+        /// The field whose extent/cardinality relationship was rejected.
+        id: String,
+        /// The violated cardinality rule.
+        detail: String,
+    },
+    /// A parameter-scalars file is malformed, empty, or contains an unsupported JSON shape.
+    #[error("parameter-scalars JSON could not be parsed: {detail}")]
+    InvalidParameterScalarsJson {
+        /// The JSON parse or local-shape failure.
+        detail: String,
+    },
+    /// A parameter-scalars key resolves to a field whose semantic role is not `parameter`.
+    #[error("parameter-scalars field {id:?} has semantic role {actual}, expected parameter")]
+    ParameterScalarRole {
+        /// The exact field ID from the scalar object.
+        id: String,
+        /// The field's actual registry semantic role.
+        actual: crate::types::SemanticRole,
+    },
+    /// A parameter-scalars JSON value shape disagrees with the registry extent.
+    #[error(
+        "parameter-scalars field {id:?} expects extent {expected}, but JSON contains a {observed}"
+    )]
+    ParameterScalarExtent {
+        /// The exact field ID from the scalar object.
+        id: String,
+        /// The extent declared by the registry.
+        expected: crate::types::Extent,
+        /// The observed JSON shape (`number` or `array`).
+        observed: &'static str,
+    },
+    /// A per-layer parameter array length differs from its registry-owned `layer_count`.
+    #[error(
+        "parameter-scalars field {id:?} has {actual} layers, but registry layer_count is {expected}"
+    )]
+    ParameterScalarLayerCount {
+        /// The exact field ID from the scalar object.
+        id: String,
+        /// The registry-owned required layer count.
+        expected: usize,
+        /// The observed array length.
+        actual: usize,
+    },
+    /// A parameter-scalars numeric value is non-finite.
+    #[error("parameter-scalars field {id:?} contains a non-finite number")]
+    NonFiniteParameterScalar {
+        /// The exact field ID containing the non-finite value.
+        id: String,
+    },
     /// An artifact file could not be read from disk (the BULK readers open the
     /// declared `path` from the package root). Distinct from `ManifestUnreadable`,
     /// which is the manifest JSON itself.

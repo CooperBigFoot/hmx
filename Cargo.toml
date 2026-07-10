@@ -3,7 +3,7 @@ members = ["crates/*"]
 
 [package]
 name = "hmx"
-version = "0.1.17"
+version = "0.1.19"
 edition = "2024"
 
 [dependencies]

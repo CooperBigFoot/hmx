@@ -40,6 +40,8 @@ SHA_BY_ROLE = {
     "forcing.flow": "33" * 32,
     "forcing.gauge": "88" * 32,
     "metadata.gauge": "99" * 32,
+    "parameter.scalars": "bb" * 32,
+    "parameter.spatial_coefficient": "cc" * 32,
 }
 
 SIZE_BY_ROLE = {
@@ -54,6 +56,8 @@ SIZE_BY_ROLE = {
     "forcing.flow": 1024,
     "forcing.gauge": 2498,
     "metadata.gauge": 2498,
+    "parameter.scalars": 512,
+    "parameter.spatial_coefficient": 1024,
 }
 
 
