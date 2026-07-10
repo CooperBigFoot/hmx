@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://hydrology-model-exchange.org/schemas/v0.2/derive.schema.json",
   "title": "HMX derivation record",
-  "description": "The external provenance record emitted by the future hmx derive command (spec §10.9). Root keys are serialized in ascending bytewise order: base_content_hash, created_at, derived_content_hash, derived_name, non_parameter_overrides, replaced, tool_version. JSON Schema validates the wire shape but cannot enforce serialization or array ordering.",
+  "description": "The external provenance record shared by hmx derive and hmx materialize (spec §10.9). Root keys are serialized in ascending bytewise order: base_content_hash, created_at, derived_content_hash, derived_name, non_parameter_overrides, replaced, tool_version. JSON Schema validates the wire shape but cannot enforce serialization or array ordering.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -54,11 +54,25 @@
       "pattern": "^[0-9a-f]{64}$"
     },
     "replacement": {
-      "title": "HMX derivation artifact replacement",
-      "description": "One changed artifact, serialized with keys in ascending bytewise order: artifact_role, field_ids, new_sha256, old_sha256. For --set, field_ids contains only changed scalar keys and the digests cover the complete scalar JSON artifact. For --replace, field_ids contains every exact registered field affected by the artifact-level swap and the digests cover the complete artifacts.",
+      "title": "HMX derivation artifact change",
+      "description": "One replaced, removed, or added artifact, serialized with keys in ascending bytewise order: artifact_role, field_ids, new_sha256, old_sha256. Replacement entries have both digests, removals have only old_sha256, and additions have only new_sha256. For derive --set, field_ids contains only changed scalar keys. For derive --replace, field_ids contains every exact registered field affected by the artifact-level swap.",
       "type": "object",
       "additionalProperties": false,
       "required": ["artifact_role", "field_ids", "new_sha256", "old_sha256"],
+      "anyOf": [
+        {
+          "required": ["new_sha256"],
+          "properties": {
+            "new_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        {
+          "required": ["old_sha256"],
+          "properties": {
+            "old_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      ],
       "properties": {
         "artifact_role": {
           "description": "The non-empty role of the changed artifact in the package manifest.",
@@ -72,8 +86,18 @@
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }
         },
-        "new_sha256": { "$ref": "#/$defs/sha256" },
-        "old_sha256": { "$ref": "#/$defs/sha256" }
+        "new_sha256": {
+          "anyOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        },
+        "old_sha256": {
+          "anyOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        }
       }
     }
   }
