@@ -302,7 +302,7 @@ fn check_artifact_shape(package_root: &Path, artifact: &Artifact) -> Result<(), 
             artifact,
             &["source_index", "target_index", "weight"],
         ),
-        ArtifactFormat::FieldRegistryV1 => Ok(()),
+        ArtifactFormat::FieldRegistryV1 | ArtifactFormat::ParameterScalarsV1 => Ok(()),
     }
 }
 

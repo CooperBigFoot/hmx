@@ -162,6 +162,7 @@ closed_enum!(
         (ParquetDomainAttributesV1, "parquet/domain_attributes_v1"),
         (ParquetDomainMappingV1, "parquet/domain_mapping_v1"),
         (FieldRegistryV1, "hmx/field_registry_v1"),
+        (ParameterScalarsV1, "hmx/parameter_scalars_v1"),
     ]
 );
 closed_enum!(
@@ -318,6 +319,7 @@ mod tests {
             "parquet/domain_attributes_v1",
             "parquet/domain_mapping_v1",
             "hmx/field_registry_v1",
+            "hmx/parameter_scalars_v1",
         ]);
         assert_round_trip::<ArtifactTimeMeaning>(&[
             "instant",
