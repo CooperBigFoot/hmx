@@ -1,0 +1,4 @@
+{
+  "cells.snow_melt_threshold_c": 0.7,
+  "cells.soil_layer_capacity_mm": [120.0, 180.0, 250.0]
+}

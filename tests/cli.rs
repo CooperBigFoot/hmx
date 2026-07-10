@@ -50,7 +50,8 @@ fn load_schema(file: &str) -> Validator {
 }
 
 fn stdout_as_json(stdout: &[u8], what: &str) -> Value {
-    serde_json::from_slice(stdout).unwrap_or_else(|e| panic!("{what} stdout is not valid JSON: {e}"))
+    serde_json::from_slice(stdout)
+        .unwrap_or_else(|e| panic!("{what} stdout is not valid JSON: {e}"))
 }
 
 fn assert_empty_stdout(stdout: &[u8]) {
@@ -76,31 +77,37 @@ fn validate_nonconformant_exits_one_conformant_false() {
 
     assert_eq!(code, 1, "non-conformant report must exit 1");
     let value = stdout_as_json(&stdout, "validate nonconformant");
-    assert_eq!(value.get("conformant").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        value.get("conformant").and_then(Value::as_bool),
+        Some(false)
+    );
 }
 
 #[test]
 fn validate_malformed_manifest_exits_two_empty_stdout() {
-    let (code, stdout) =
-        run_hmx_full(&["validate", &fixture_arg("tests/fixtures/malformed-manifest")]);
+    let (code, stdout) = run_hmx_full(&[
+        "validate",
+        &fixture_arg("tests/fixtures/malformed-manifest"),
+    ]);
 
     assert_eq!(code, 2, "malformed manifest must exit 2");
     assert_empty_stdout(&stdout);
 }
 
 #[test]
-fn validate_unknown_format_version_exits_two_empty_stdout() {
-    let (code, stdout) =
-        run_hmx_full(&["validate", &fixture_arg("tests/fixtures/unknown-format-version")]);
+fn validate_legacy_0_1_format_version_exits_two_empty_stdout() {
+    let (code, stdout) = run_hmx_full(&[
+        "validate",
+        &fixture_arg("tests/fixtures/unknown-format-version"),
+    ]);
 
-    assert_eq!(code, 2, "unknown format_version must exit 2");
+    assert_eq!(code, 2, "legacy 0.1 format_version must exit 2");
     assert_empty_stdout(&stdout);
 }
 
 #[test]
 fn validate_nonexistent_path_exits_two_empty_stdout() {
-    let (code, stdout) =
-        run_hmx_full(&["validate", &fixture_arg("tests/fixtures/does-not-exist")]);
+    let (code, stdout) = run_hmx_full(&["validate", &fixture_arg("tests/fixtures/does-not-exist")]);
 
     assert_eq!(code, 2, "nonexistent package path must exit 2");
     assert_empty_stdout(&stdout);
@@ -135,26 +142,33 @@ fn describe_valid_exits_zero_with_content_hash() {
         .get("value")
         .and_then(Value::as_str)
         .expect("content_hash.value is a string");
-    assert_eq!(hash_value.len(), 64, "content_hash.value is 64 hex characters");
+    assert_eq!(
+        hash_value.len(),
+        64,
+        "content_hash.value is 64 hex characters"
+    );
     assert!(
-        hash_value.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+        hash_value
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
         "content_hash.value is lowercase hex"
     );
 }
 
 #[test]
-fn describe_unknown_format_version_exits_two_empty_stdout() {
-    let (code, stdout) =
-        run_hmx_full(&["describe", &fixture_arg("tests/fixtures/unknown-format-version")]);
+fn describe_legacy_0_1_format_version_exits_two_empty_stdout() {
+    let (code, stdout) = run_hmx_full(&[
+        "describe",
+        &fixture_arg("tests/fixtures/unknown-format-version"),
+    ]);
 
-    assert_eq!(code, 2, "unknown format_version must exit 2");
+    assert_eq!(code, 2, "legacy 0.1 format_version must exit 2");
     assert_empty_stdout(&stdout);
 }
 
 #[test]
 fn describe_nonexistent_path_exits_two_empty_stdout() {
-    let (code, stdout) =
-        run_hmx_full(&["describe", &fixture_arg("tests/fixtures/does-not-exist")]);
+    let (code, stdout) = run_hmx_full(&["describe", &fixture_arg("tests/fixtures/does-not-exist")]);
 
     assert_eq!(code, 2, "nonexistent package path must exit 2");
     assert_empty_stdout(&stdout);

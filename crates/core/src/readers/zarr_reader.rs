@@ -262,9 +262,7 @@ fn read_coord_bytes(store: &Path, artifact: &str, coord: &str) -> Result<Vec<u8>
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use crate::readers::zarr_reader::{
-        ZarrCoordinateValues, read_zarr_metadata,
-    };
+    use crate::readers::zarr_reader::{ZarrCoordinateValues, read_zarr_metadata};
 
     fn fixture_store() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/synthetic-zarr")

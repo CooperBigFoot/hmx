@@ -136,8 +136,16 @@ impl<'a> From<&'a Description> for DescriptionDto<'a> {
             grid: GridDto::from(manifest.grid()),
             domains: manifest.domains().iter().map(DomainFactDto::from).collect(),
             fields: description.fields.iter().map(FieldFactDto::from).collect(),
-            mappings: manifest.mappings().iter().map(MappingFactDto::from).collect(),
-            artifacts: manifest.artifacts().iter().map(ArtifactFactDto::from).collect(),
+            mappings: manifest
+                .mappings()
+                .iter()
+                .map(MappingFactDto::from)
+                .collect(),
+            artifacts: manifest
+                .artifacts()
+                .iter()
+                .map(ArtifactFactDto::from)
+                .collect(),
         }
     }
 }

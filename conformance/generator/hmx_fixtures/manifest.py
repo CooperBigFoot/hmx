@@ -3,7 +3,7 @@
 from pathlib import Path
 import json
 
-FORMAT_VERSION = "0.1"
+FORMAT_VERSION = "0.2"
 CREATED_AT = "2026-06-29T00:00:00Z"
 MANIFEST_FIELDS = [
     "format_version",

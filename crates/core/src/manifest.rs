@@ -46,13 +46,12 @@ impl Manifest {
         let producer = Producer::new(require_non_empty(dto.producer, "producer")?);
         let producer_version =
             ProducerVersion::new(require_non_empty(dto.producer_version, "producer_version")?);
-        let created_at =
-            OffsetDateTime::parse(&dto.created_at, &Rfc3339).map_err(|_| {
-                warn!(value = %dto.created_at, "rejecting non-RFC-3339 created_at");
-                CoreError::InvalidTimestamp {
-                    value: dto.created_at.clone(),
-                }
-            })?;
+        let created_at = OffsetDateTime::parse(&dto.created_at, &Rfc3339).map_err(|_| {
+            warn!(value = %dto.created_at, "rejecting non-RFC-3339 created_at");
+            CoreError::InvalidTimestamp {
+                value: dto.created_at.clone(),
+            }
+        })?;
         let crs = Crs::new(require_non_empty(dto.crs, "crs")?);
         let grid = convert_grid(dto.grid)?;
         let domains = dto
@@ -235,8 +234,14 @@ fn convert_mapping(dto: MappingDto) -> Result<Mapping, CoreError> {
 
     Ok(Mapping {
         purpose,
-        source_domain: DomainId::new(require_non_empty(dto.source_domain, "mapping.source_domain")?),
-        target_domain: DomainId::new(require_non_empty(dto.target_domain, "mapping.target_domain")?),
+        source_domain: DomainId::new(require_non_empty(
+            dto.source_domain,
+            "mapping.source_domain",
+        )?),
+        target_domain: DomainId::new(require_non_empty(
+            dto.target_domain,
+            "mapping.target_domain",
+        )?),
         variable,
         artifact_role: ArtifactRole::new(require_non_empty(
             dto.artifact_role,
@@ -319,7 +324,7 @@ mod tests {
     use crate::types::{ArtifactFormat, FormatVersion, MappingPurpose};
 
     const VALID_MANIFEST: &str = r#"{
-  "format_version": "0.1",
+  "format_version": "0.2",
   "name": "synthetic-glacier-mini",
   "created_at": "2026-06-29T00:00:00Z",
   "producer": "hmx-core-a3-test",
@@ -342,34 +347,52 @@ mod tests {
     { "purpose": "cell_to_glacier", "source_domain": "cell", "target_domain": "glacier", "artifact_role": "mapping.cell_to_glacier" }
   ],
   "artifacts": [
-    { "role": "registry.fields", "path": "registry/fields.json", "format": "hmx/field_registry_v1", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size_bytes": 512 }
+    { "role": "registry.fields", "path": "registry/fields.json", "format": "hmx/field_registry_v1", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size_bytes": 512 },
+    { "role": "parameter.scalars", "path": "parameter/scalars.json", "format": "hmx/parameter_scalars_v1", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "size_bytes": 96 }
   ]
 }"#;
 
     #[test]
     fn valid_manifest_parses_to_typed_values() {
         let manifest = parse_valid();
-        assert_eq!(manifest.format_version(), FormatVersion::V0_1);
+        assert_eq!(manifest.format_version(), FormatVersion::V0_2);
         assert_eq!(manifest.name().as_str(), "synthetic-glacier-mini");
         assert_eq!(manifest.crs().as_str(), "EPSG:32645");
         assert_eq!(manifest.grid().nx, 4);
         assert_eq!(manifest.domains().len(), 2);
         assert_eq!(manifest.domains()[1].external_ids, Some(vec![1, 2, 2001]));
-        assert_eq!(manifest.mappings()[0].purpose, MappingPurpose::CellToGlacier);
-        assert_eq!(manifest.artifacts()[0].format, ArtifactFormat::FieldRegistryV1);
+        assert_eq!(
+            manifest.mappings()[0].purpose,
+            MappingPurpose::CellToGlacier
+        );
+        assert_eq!(
+            manifest.artifacts()[0].format,
+            ArtifactFormat::FieldRegistryV1
+        );
+        assert_eq!(
+            manifest.artifacts()[1].format,
+            ArtifactFormat::ParameterScalarsV1
+        );
+        assert_eq!(
+            manifest.artifacts()[1].path.as_str(),
+            "parameter/scalars.json"
+        );
     }
 
     #[test]
     fn unknown_format_version_rejects() {
-        match parse_err(replace_once(r#""format_version": "0.1""#, r#""format_version": "0.2""#)) {
-            CoreError::UnknownFormatVersion { found } => assert_eq!(found, "0.2"),
+        match parse_err(replace_once(
+            r#""format_version": "0.2""#,
+            r#""format_version": "0.1""#,
+        )) {
+            CoreError::UnknownFormatVersion { found } => assert_eq!(found, "0.1"),
             other => panic!("expected UnknownFormatVersion, got {other:?}"),
         }
     }
 
     #[test]
     fn unknown_format_version_wins_over_empty_crs() {
-        let json = replace_once(r#""format_version": "0.1""#, r#""format_version": "9.9""#);
+        let json = replace_once(r#""format_version": "0.2""#, r#""format_version": "9.9""#);
         let json = json.replace(r#""crs": "EPSG:32645""#, r#""crs": """#);
         match parse_err(json) {
             CoreError::UnknownFormatVersion { found } => assert_eq!(found, "9.9"),
@@ -395,10 +418,9 @@ mod tests {
 
     #[test]
     fn extra_top_level_key_rejects() {
-        match parse_err(VALID_MANIFEST.replace(
-            r#""artifacts": ["#,
-            r#""glacier_count": 3, "artifacts": ["#,
-        )) {
+        match parse_err(
+            VALID_MANIFEST.replace(r#""artifacts": ["#, r#""glacier_count": 3, "artifacts": ["#),
+        ) {
             CoreError::ExtraManifestField { field } => assert_eq!(field, "glacier_count"),
             other => panic!("expected ExtraManifestField, got {other:?}"),
         }
@@ -432,7 +454,10 @@ mod tests {
 
     #[test]
     fn invalid_package_kind_rejects() {
-        match parse_err(replace_once(r#""package_kind": "input""#, r#""package_kind": "output""#)) {
+        match parse_err(replace_once(
+            r#""package_kind": "input""#,
+            r#""package_kind": "output""#,
+        )) {
             CoreError::InvalidEnumValue { field, found } => {
                 assert_eq!(field, "package_kind");
                 assert_eq!(found, "output");
@@ -475,7 +500,10 @@ mod tests {
 
     #[test]
     fn invalid_artifact_format_rejects() {
-        match parse_err(replace_once(r#""format": "hmx/field_registry_v1""#, r#""format": "geotiff""#)) {
+        match parse_err(replace_once(
+            r#""format": "hmx/field_registry_v1""#,
+            r#""format": "geotiff""#,
+        )) {
             CoreError::InvalidEnumValue { field, found } => {
                 assert_eq!(field, "format");
                 assert_eq!(found, "geotiff");

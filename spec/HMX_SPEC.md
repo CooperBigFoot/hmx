@@ -1,4 +1,4 @@
-# HMX — Hydrology Model Exchange (`format_version` `0.1`)
+# HMX — Hydrology Model Exchange (`format_version` `0.2`)
 
 > Normative specification (M13 / step A2). HMX is a prescriptive,
 > friction-anchored interface for single-basin hydrology **model input**
@@ -11,7 +11,7 @@
 
 0.1 A reader MUST read `format_version` FIRST and reject the package outright if
 its value is not a recognized HMX format version. The only recognized value is
-`"0.1"`. This is a HARD CUT: an unknown `format_version` MUST NOT be softened to
+`"0.2"`. This is a HARD CUT: an unknown `format_version` MUST NOT be softened to
 a validation report — it is a structural rejection (the CLI exit-code `2`, §10).
 
 0.2 The on-disk manifest file is named `manifest.json` and lives at the package
@@ -35,7 +35,7 @@ sub-layers, nor as a superset of either.
 data encoding. The on-disk artifact formats (§7) reuse the existing bluesmith
 COG / parquet / geoparquet shapes (decision OD5, §13).
 
-1.4 OUT of scope for HMX `0.1` (a producer MUST NOT rely on HMX to carry these):
+1.4 OUT of scope for HMX `0.2` (a producer MUST NOT rely on HMX to carry these):
 docs-for-AI generation, run dispatch / run-output packaging, evaluation /
 leaderboard / metrics, and the run-output manifest (that remains a separate,
 non-HMX bluesmith artifact).
@@ -68,7 +68,7 @@ circular). The manifest MUST NOT carry any out-of-band entity-count field (e.g.
 a top-level `glacier_count`); `additionalProperties:false` rejects it. Entity
 cardinality lives ONLY in `domains[].entity_count` (§5; prevents F2/F10).
 
-3.3 `format_version` MUST be `"0.1"`. `package_kind` MUST be `"input"` (HMX `0.1`
+3.3 `format_version` MUST be `"0.2"`. `package_kind` MUST be `"input"` (HMX `0.2`
 describes input packages only).
 
 3.4 `name` is the package identity string (non-empty). `created_at` is an RFC
@@ -142,7 +142,7 @@ undeclarable field may bypass the input-completeness gate (prevents F8/F19; the
 ## 7. On-disk artifact formats (the closed `format` set)
 
 7.1 Every `artifacts[]` entry's `format` MUST be one of the closed set below.
-HMX `0.1` reuses the proven bluesmith encodings verbatim (decision OD5, §13). A
+HMX `0.2` reuses the proven bluesmith encodings verbatim (decision OD5, §13). A
 reader for the BULK payloads (`cog`, `zarr`, and the large `parquet/gauge_long_v1`
 forcing tables) MUST read metadata only (tags / row-group statistics / schema /
 bounded 1-D coordinate scans) and MUST NOT decode a data chunk, pixel, or
@@ -162,12 +162,30 @@ geometry blob. The small CONTROL tables (`domain_mapping_v1`,
 | `parquet/domain_attributes_v1` | Dense per-entity attribute table | `entity_index`:int64 (dense zero-based) + one float64 column per attribute field |
 | `parquet/domain_mapping_v1` | Generic source→target mapping | `source_index`:int64, `target_index`:int64, `weight`:float64 |
 | `hmx/field_registry_v1` | JSON, conforms to `field_registry.schema.json` | (JSON; §6) |
+| `hmx/parameter_scalars_v1` | JSON object keyed by field-registry field name | (JSON numbers or non-empty numeric arrays; §7.3) |
 
 7.2 An `artifacts[]` entry has EXACTLY `role`, `path`, `format`, `sha256`
 (required) plus the optional `size_bytes`, `crs`, `domain`, `variable`, `unit`,
 `time_meaning`, `interval_seconds`, `row_count`, `first_step_index`,
 `last_step_index` (`additionalProperties:false`). `sha256` is the lowercase-hex
 SHA-256 of the artifact bytes (64 hex chars).
+
+7.3 An `hmx/parameter_scalars_v1` artifact MUST be one JSON object. Every key
+MUST be a field name from the field registry. A field with `extent: scalar` MUST
+map to a finite JSON number; a field with `extent: per_layer` MUST map to a
+non-empty array of finite JSON numbers whose length matches the registry-owned
+layer count. Each parameter field MUST have exactly one source across scalar
+entries and raster or table artifacts. The conventional package-relative path is
+`parameter/scalars.json`, but the path declared by the manifest is authoritative.
+Units, semantic role, extent, layer-count semantics, and all other field metadata
+MUST remain authoritative in `registry/fields.json` and MUST NOT be duplicated in
+the scalar artifact.
+
+The M1-S2 implementation recognizes the format, and its JSON Schema defines only
+the local JSON shape. Registry membership, the required `parameter` semantic
+role, `per_layer` array length, exactly-one-source enforcement, scalar reading,
+and conformance packages are deferred to M2; the M1-S2 validator does not open or
+parse this artifact.
 
 ## 8. Cross-domain mappings
 
@@ -235,12 +253,18 @@ present) the `external_ids.length == entity_count` + dense-index cross-check; th
 closed `format` set and per-format column shapes (metadata-deep); and the §8
 mapping declarations resolving to real artifacts.
 
+For `hmx/parameter_scalars_v1`, the complete validator contract additionally
+MUST check registry membership and the `parameter` semantic role, enforce each
+`per_layer` array length against registry-owned layer semantics, and require
+exactly one source across scalar entries and raster or table artifacts. These
+semantic checks are M2 work and are not implemented by M1-S2.
+
 11.2 Conformance validates FORMAT only. It MUST NOT include any evaluation,
 metric, leaderboard, or wall-time judgment (OUT of scope, §1.4).
 
 ## 12. Scope boundary — recap
 
-HMX `0.1` carries: a single-basin model-input manifest, a typed field registry,
+HMX `0.2` carries: a single-basin model-input manifest, a typed field registry,
 explicit multi-entity domains with one authoritative cardinality, explicit
 cross-domain mappings, the reused bluesmith on-disk formats, an explicit CRS, and
 a computed content-hash. It does NOT carry: compositional HDX/HFX layering,

@@ -107,7 +107,10 @@ impl From<&Mapping> for MappingDto {
             purpose: mapping.purpose.as_str().to_string(),
             source_domain: mapping.source_domain.as_str().to_string(),
             target_domain: mapping.target_domain.as_str().to_string(),
-            variable: mapping.variable.as_ref().map(|value| value.as_str().to_string()),
+            variable: mapping
+                .variable
+                .as_ref()
+                .map(|value| value.as_str().to_string()),
             artifact_role: mapping.artifact_role.as_str().to_string(),
         }
     }
@@ -121,9 +124,18 @@ impl From<&Artifact> for ArtifactDto {
             format: artifact.format.as_str().to_string(),
             sha256: artifact.sha256.as_str().to_string(),
             size_bytes: artifact.size_bytes,
-            crs: artifact.crs.as_ref().map(|value| value.as_str().to_string()),
-            domain: artifact.domain.as_ref().map(|value| value.as_str().to_string()),
-            variable: artifact.variable.as_ref().map(|value| value.as_str().to_string()),
+            crs: artifact
+                .crs
+                .as_ref()
+                .map(|value| value.as_str().to_string()),
+            domain: artifact
+                .domain
+                .as_ref()
+                .map(|value| value.as_str().to_string()),
+            variable: artifact
+                .variable
+                .as_ref()
+                .map(|value| value.as_str().to_string()),
             unit: artifact.unit.clone(),
             time_meaning: artifact
                 .time_meaning

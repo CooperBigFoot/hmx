@@ -4,10 +4,10 @@ use serde::Serialize;
 
 use crate::CoreError;
 
-/// A single HMX 0.1 conformance check id from spec §11.1 plus carried nits.
+/// A single HMX 0.2 conformance check id from spec §11.1 plus carried nits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CheckId {
-    /// Manifest parsed and `format_version == "0.1"` (spec §0/§3.3).
+    /// Manifest parsed and `format_version == "0.2"` (spec §0/§3.3).
     M1,
     /// Manifest has the required closed shape and `package_kind == "input"` (spec §3).
     M2,
@@ -43,7 +43,7 @@ impl CheckId {
     }
 }
 
-/// Full ordered HMX 0.1 checklist in spec order.
+/// Full ordered HMX 0.2 checklist in spec order.
 pub const ALL_CHECK_IDS: [CheckId; 9] = [
     CheckId::M1,
     CheckId::M2,
@@ -264,9 +264,7 @@ pub enum DescribeError {
 mod tests {
     use serde_json::Value;
 
-    use crate::report::{
-        CheckId, CheckOutcome, CheckResult, DepthClass, ValidationReport,
-    };
+    use crate::report::{CheckId, CheckOutcome, CheckResult, DepthClass, ValidationReport};
 
     #[test]
     fn from_outcomes_fails_closed_on_any_ran_fail() {

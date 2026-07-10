@@ -101,13 +101,13 @@ macro_rules! closed_enum {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FormatVersion {
-    V0_1,
+    V0_2,
 }
 
 impl FormatVersion {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::V0_1 => "0.1",
+            Self::V0_2 => "0.2",
         }
     }
 }
@@ -117,7 +117,7 @@ impl FromStr for FormatVersion {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "0.1" => Ok(Self::V0_1),
+            "0.2" => Ok(Self::V0_2),
             other => Err(CoreError::UnknownFormatVersion {
                 found: other.to_string(),
             }),
@@ -132,7 +132,11 @@ impl fmt::Display for FormatVersion {
 }
 
 closed_enum!(PackageKind, "package_kind", [(Input, "input")]);
-closed_enum!(IndexBase, "index_base", [(DenseZeroBased, "dense_zero_based")]);
+closed_enum!(
+    IndexBase,
+    "index_base",
+    [(DenseZeroBased, "dense_zero_based")]
+);
 closed_enum!(GridOrigin, "origin", [(UpperLeft, "upper_left")]);
 closed_enum!(
     MappingPurpose,
@@ -158,6 +162,7 @@ closed_enum!(
         (ParquetDomainAttributesV1, "parquet/domain_attributes_v1"),
         (ParquetDomainMappingV1, "parquet/domain_mapping_v1"),
         (FieldRegistryV1, "hmx/field_registry_v1"),
+        (ParameterScalarsV1, "hmx/parameter_scalars_v1"),
     ]
 );
 closed_enum!(
@@ -168,10 +173,7 @@ closed_enum!(
         (Rate, "rate"),
         (StepAmount, "step_amount"),
         (MeanOverInterval, "mean_over_interval"),
-        (
-            AccumulatedOverInterval,
-            "accumulated_over_interval"
-        ),
+        (AccumulatedOverInterval, "accumulated_over_interval"),
     ]
 );
 closed_enum!(
@@ -214,7 +216,11 @@ closed_enum!(
         (None, "none"),
     ]
 );
-closed_enum!(Extent, "extent", [(Scalar, "scalar"), (PerLayer, "per_layer")]);
+closed_enum!(
+    Extent,
+    "extent",
+    [(Scalar, "scalar"), (PerLayer, "per_layer")]
+);
 
 /// The raster grid the gridded artifacts live on (spec §4.2). Plain data; A3
 /// performs no numeric-range checks (cell_size>0, nx>=1) — those are the A8
@@ -286,14 +292,13 @@ mod tests {
 
     use crate::CoreError;
     use crate::types::{
-        ArtifactFormat, ArtifactTimeMeaning, ConservationClass, Crs, Extent,
-        FieldTimeMeaning, FormatVersion, GridOrigin, IndexBase, MappingPurpose, PackageKind,
-        SemanticRole, ValueType,
+        ArtifactFormat, ArtifactTimeMeaning, ConservationClass, Crs, Extent, FieldTimeMeaning,
+        FormatVersion, GridOrigin, IndexBase, MappingPurpose, PackageKind, SemanticRole, ValueType,
     };
 
     #[test]
     fn enum_values_round_trip() {
-        assert_round_trip::<FormatVersion>(&["0.1"]);
+        assert_round_trip::<FormatVersion>(&["0.2"]);
         assert_round_trip::<PackageKind>(&["input"]);
         assert_round_trip::<IndexBase>(&["dense_zero_based"]);
         assert_round_trip::<GridOrigin>(&["upper_left"]);
@@ -314,6 +319,7 @@ mod tests {
             "parquet/domain_attributes_v1",
             "parquet/domain_mapping_v1",
             "hmx/field_registry_v1",
+            "hmx/parameter_scalars_v1",
         ]);
         assert_round_trip::<ArtifactTimeMeaning>(&[
             "instant",
@@ -336,9 +342,13 @@ mod tests {
     }
 
     #[test]
-    fn unknown_format_version_is_a_hard_cut() {
-        match FormatVersion::from_str("0.2") {
-            Err(CoreError::UnknownFormatVersion { found }) => assert_eq!(found, "0.2"),
+    fn format_version_0_2_is_the_only_recognized_version() {
+        let parsed = FormatVersion::from_str("0.2")
+            .unwrap_or_else(|err| panic!("expected 0.2 to parse, got {err:?}"));
+        assert_eq!(parsed.as_str(), "0.2");
+
+        match FormatVersion::from_str("0.1") {
+            Err(CoreError::UnknownFormatVersion { found }) => assert_eq!(found, "0.1"),
             other => panic!("expected UnknownFormatVersion, got {other:?}"),
         }
     }

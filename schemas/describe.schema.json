@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hydrology-model-exchange.org/schemas/v0.1/describe.schema.json",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.2/describe.schema.json",
   "title": "HMX describe output",
   "description": "The facts-only self-description the describe verb emits (spec §10.2). additionalProperties:false at every level. Surfaces the content-hash (spec §9). No conformant key (that is validate). Versioned implicitly by manifest format_version.",
   "type": "object",
@@ -23,7 +23,7 @@
       "additionalProperties": false,
       "required": ["format_version", "name", "created_at", "producer", "producer_version", "package_kind", "crs"],
       "properties": {
-        "format_version": { "type": "string", "enum": ["0.1"] },
+        "format_version": { "type": "string", "enum": ["0.2"] },
         "name": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" },
         "producer": { "type": "string" },

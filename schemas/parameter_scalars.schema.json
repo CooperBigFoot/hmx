@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.2/parameter_scalars.schema.json",
+  "title": "HMX scalar parameters",
+  "description": "One hmx/parameter_scalars_v1 JSON object. Keys are field-registry field names. Values are finite JSON numbers for scalar fields or non-empty numeric arrays for per-layer fields. Units, semantic role, extent, and layer-count semantics remain in the field registry.",
+  "type": "object",
+  "minProperties": 1,
+  "propertyNames": {
+    "type": "string",
+    "minLength": 1
+  },
+  "additionalProperties": {
+    "oneOf": [
+      { "type": "number" },
+      {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "number" }
+      }
+    ]
+  }
+}
