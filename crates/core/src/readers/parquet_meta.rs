@@ -37,7 +37,11 @@ impl ParquetMetadata {
 
     /// Returns the arrow column names in schema order.
     pub fn column_names(&self) -> Vec<&str> {
-        self.schema.fields().iter().map(|f| f.name().as_str()).collect()
+        self.schema
+            .fields()
+            .iter()
+            .map(|f| f.name().as_str())
+            .collect()
     }
 
     /// Returns the compression codec for one row-group column, if indexes exist.

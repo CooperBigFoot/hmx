@@ -70,7 +70,7 @@ def derive_invalid(valid_root: Path, invalid_root: Path, invalid: Invalid) -> No
     manifest = _read_manifest(target)
 
     if invalid is Invalid.UNKNOWN_FORMAT_VERSION:
-        manifest["format_version"] = "0.2"
+        manifest["format_version"] = "0.1"
         _rewrite_manifest(target, manifest)
     elif invalid is Invalid.EXTRA_MANIFEST_FIELD:
         manifest["glacier_count"] = 3

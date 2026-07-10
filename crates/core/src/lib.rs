@@ -7,14 +7,14 @@
 
 use tracing::debug;
 
-pub mod manifest;
 pub mod describe;
 pub mod domains;
 pub mod hash;
+pub mod manifest;
 pub mod mappings;
-pub mod report;
-pub mod registry;
 pub mod readers;
+pub mod registry;
+pub mod report;
 pub mod types;
 pub mod validate;
 
@@ -39,9 +39,11 @@ pub fn core_version() -> &'static str {
 /// are reported by the A8 `validate` verb, not raised by the reader.
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
-    /// `format_version` is not the single recognized value `"0.1"` (spec §0 hard
+    /// `format_version` is not the single recognized value `"0.2"` (spec §0 hard
     /// cut). Read FIRST, so this wins over every other field-value error.
-    #[error("unknown HMX format_version {found:?}: the only recognized value is \"0.1\" (spec §0 hard cut)")]
+    #[error(
+        "unknown HMX format_version {found:?}: the only recognized value is \"0.2\" (spec §0 hard cut)"
+    )]
     UnknownFormatVersion {
         /// The rejected raw `format_version` string, echoed verbatim.
         found: String,

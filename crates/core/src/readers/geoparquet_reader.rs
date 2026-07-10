@@ -51,7 +51,10 @@ impl GeoparquetMetadata {
 
     /// Returns true when the arrow schema contains the conventional geometry column.
     pub fn has_geometry_column(&self) -> bool {
-        self.schema().fields().iter().any(|f| f.name() == GEOMETRY_COLUMN)
+        self.schema()
+            .fields()
+            .iter()
+            .any(|f| f.name() == GEOMETRY_COLUMN)
     }
 }
 
@@ -62,9 +65,7 @@ impl GeoparquetMetadata {
 /// Returns parquet reader errors from [`read_parquet_metadata`] or
 /// [`CoreError::GeoMetadataMalformed`] for a present but malformed `geo` block.
 #[instrument(fields(path = %path.as_ref().display()))]
-pub fn read_geoparquet_metadata(
-    path: impl AsRef<Path>,
-) -> Result<GeoparquetMetadata, CoreError> {
+pub fn read_geoparquet_metadata(path: impl AsRef<Path>) -> Result<GeoparquetMetadata, CoreError> {
     let path = path.as_ref();
     let artifact = path.display().to_string();
     let parquet = read_parquet_metadata(path)?;

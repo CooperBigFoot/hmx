@@ -91,9 +91,9 @@ jobs:
       - name: Lint schemas + assert spec version matches schema const
         run: |
           uvx check-jsonschema --check-metaschema schemas/*.schema.json
-          grep -Fq '"0.1"' schemas/manifest.schema.json
+          grep -Fq '"0.2"' schemas/manifest.schema.json
           grep -Fq 'format_version' spec/HMX_SPEC.md
-          grep -Fq '0.1' spec/HMX_SPEC.md
+          grep -Fq '0.2' spec/HMX_SPEC.md
       - name: Regenerate conformance fixtures
         run: PYTHON=python3.12 conformance/generator/regenerate.sh
       - name: Conformance Rust tests (byte-compare committed goldens)

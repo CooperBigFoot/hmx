@@ -52,7 +52,7 @@ mod tests {
     use crate::manifest::{Manifest, read};
 
     const VALID: &str = r#"{
-  "format_version": "0.1",
+  "format_version": "0.2",
   "name": "synthetic-glacier-mini",
   "created_at": "2026-06-29T00:00:00Z",
   "producer": "hmx-core-a7-test",
@@ -91,7 +91,12 @@ mod tests {
         assert_eq!(hash_a, hash_b);
         assert_eq!(hash_a, hash_a_again);
         assert_eq!(hash_a.as_str().len(), 64);
-        assert!(hash_a.as_str().chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(
+            hash_a
+                .as_str()
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        );
         assert_eq!(hash_a.hash_algo(), "sha256");
     }
 
@@ -151,9 +156,7 @@ mod tests {
         assert!(index_of(&canonical, r#""artifacts""#) < index_of(&canonical, r#""created_at""#));
         assert!(index_of(&canonical, r#""created_at""#) < index_of(&canonical, r#""crs""#));
         assert!(index_of(&canonical, r#""crs""#) < index_of(&canonical, r#""domains""#));
-        assert!(
-            index_of(&canonical, r#""artifact_role""#) < index_of(&canonical, r#""purpose""#)
-        );
+        assert!(index_of(&canonical, r#""artifact_role""#) < index_of(&canonical, r#""purpose""#));
     }
 
     fn unique_suffix() -> String {

@@ -1,6 +1,6 @@
 //! Frontend-agnostic `validate` engine.
 //!
-//! A violated HMX 0.1 MUST that runs is recorded as a `ran:fail`
+//! A violated HMX 0.2 MUST that runs is recorded as a `ran:fail`
 //! [`CheckOutcome`](crate::report::CheckOutcome) and makes the report
 //! `conformant:false`. [`ValidateError`] is reserved for structural entry
 //! failures: unreadable manifest, the format-version hard cut, or malformed
@@ -9,7 +9,7 @@
 //!
 //! OD6 decisions: all checks are error-severity MUST checks; core has no
 //! `--strict`; the wire schema keeps `id` as a free string with the Rust
-//! [`CheckId`] enum as the closed set; every HMX 0.1 check is `metadata_deep`.
+//! [`CheckId`] enum as the closed set; every HMX 0.2 check is `metadata_deep`.
 
 use std::path::Path;
 
@@ -250,19 +250,58 @@ fn check_artifact_shape(package_root: &Path, artifact: &Artifact) -> Result<(), 
         ArtifactFormat::GeoparquetReachTopologyV1 => {
             let meta = read_geoparquet_metadata(&path)
                 .map_err(|err| format!("{}: {err}", artifact.path.as_str()))?;
-            let columns: Vec<&str> = meta.schema().fields().iter().map(|f| f.name().as_str()).collect();
-            require_columns(artifact, &columns, &["reach_id", "order_index", "manning_n", "width_m", "slope", "length_m", "geometry"])?;
+            let columns: Vec<&str> = meta
+                .schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().as_str())
+                .collect();
+            require_columns(
+                artifact,
+                &columns,
+                &[
+                    "reach_id",
+                    "order_index",
+                    "manning_n",
+                    "width_m",
+                    "slope",
+                    "length_m",
+                    "geometry",
+                ],
+            )?;
             if !meta.has_geometry_column() {
-                return Err(format!("{} format {} has no geometry column", artifact.path.as_str(), artifact.format.as_str()));
+                return Err(format!(
+                    "{} format {} has no geometry column",
+                    artifact.path.as_str(),
+                    artifact.format.as_str()
+                ));
             }
             Ok(())
         }
-        ArtifactFormat::ParquetGaugeLongV1 => check_parquet_columns(package_root, artifact, &["timestep", "gauge_id", "value"]),
-        ArtifactFormat::ParquetGaugeMetadataV1 => check_parquet_columns(package_root, artifact, &["gauge_id", "x", "y", "z", "name"]),
-        ArtifactFormat::ParquetCellToGaugeV1 => check_parquet_columns(package_root, artifact, &["cell_index", "gauge_id", "weight"]),
-        ArtifactFormat::ParquetCellToReachV1 => check_parquet_columns(package_root, artifact, &["cell_index", "reach_id", "weight"]),
-        ArtifactFormat::ParquetDomainAttributesV1 => check_parquet_columns(package_root, artifact, &["entity_index"]),
-        ArtifactFormat::ParquetDomainMappingV1 => check_parquet_columns(package_root, artifact, &["source_index", "target_index", "weight"]),
+        ArtifactFormat::ParquetGaugeLongV1 => {
+            check_parquet_columns(package_root, artifact, &["timestep", "gauge_id", "value"])
+        }
+        ArtifactFormat::ParquetGaugeMetadataV1 => {
+            check_parquet_columns(package_root, artifact, &["gauge_id", "x", "y", "z", "name"])
+        }
+        ArtifactFormat::ParquetCellToGaugeV1 => check_parquet_columns(
+            package_root,
+            artifact,
+            &["cell_index", "gauge_id", "weight"],
+        ),
+        ArtifactFormat::ParquetCellToReachV1 => check_parquet_columns(
+            package_root,
+            artifact,
+            &["cell_index", "reach_id", "weight"],
+        ),
+        ArtifactFormat::ParquetDomainAttributesV1 => {
+            check_parquet_columns(package_root, artifact, &["entity_index"])
+        }
+        ArtifactFormat::ParquetDomainMappingV1 => check_parquet_columns(
+            package_root,
+            artifact,
+            &["source_index", "target_index", "weight"],
+        ),
         ArtifactFormat::FieldRegistryV1 => Ok(()),
     }
 }
@@ -273,8 +312,8 @@ fn check_parquet_columns(
     required: &[&str],
 ) -> Result<(), String> {
     let path = package_root.join(artifact.path.as_str());
-    let meta = read_parquet_metadata(&path)
-        .map_err(|err| format!("{}: {err}", artifact.path.as_str()))?;
+    let meta =
+        read_parquet_metadata(&path).map_err(|err| format!("{}: {err}", artifact.path.as_str()))?;
     require_columns(artifact, &meta.column_names(), required)
 }
 
