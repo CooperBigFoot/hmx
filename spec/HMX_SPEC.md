@@ -157,7 +157,7 @@ geometry blob. The small CONTROL tables (`domain_mapping_v1`,
 
 | `format` | Encoding | Required columns (name : arrow type) |
 |---|---|---|
-| `cog` | Cloud-Optimized GeoTIFF, single band on the package grid | (raster; metadata/tags only) |
+| `cog` | Cloud-Optimized GeoTIFF, one or more bands on the package grid | (raster; metadata/tags only) |
 | `zarr` | Zarr v3 gridded payload (optional) | (gridded; `zarr.json` + 1-D coords only) |
 | `geoparquet/reach_topology_v1` | GeoParquet (WKB LineString + `geo` metadata) | `reach_id`:int64, `downstream_reach_id`:int64?, `order_index`:int64, `manning_n`:float64, `width_m`:float64, `slope`:float64, `length_m`:float64, `geometry`:binary(WKB) |
 | `parquet/gauge_long_v1` | Long-format forcing time series | `timestep`:int64, `gauge_id`:int64, `value`:float64 |
@@ -244,10 +244,11 @@ MUST NOT recompute it independently.
 
 ## 10. Tooling — the contract-executing verbs
 
-10.1 HMX defines two CLI verbs (implemented A8/A9): `describe` and `validate`.
-Both emit JSON to stdout. Exit codes: `0` = conformant / success, `1` =
-non-conformant (a MUST that ran failed), `2` = structural error (e.g. the §0 hard
-version cut, unreadable manifest).
+10.1 HMX defines three CLI verbs: `describe`, `validate`, and `derive`.
+All emit JSON to stdout. The existing `describe` and `validate` exit-code
+contract remains: `0` = conformant / success, `1` = non-conformant (a MUST that
+ran failed), `2` = structural error (e.g. the §0 hard version cut, unreadable
+manifest). `derive` is specified in §10.5–§10.10 for future implementation.
 
 10.2 `describe` emits a facts-only self-description conforming to
 `schemas/describe.schema.json`: the manifest identity floor, the package
@@ -265,6 +266,91 @@ supported are NOT fixed by this document — they are owned by step A8 (decision
 OD6). `validate.schema.json` therefore constrains the OUTPUT WIRE SHAPE only and
 leaves `id` as a non-empty string. A8 MAY file a one-field revision (§14) to pin
 `id` to the closed enum or to add a `severity` field.
+
+10.5 `derive` MUST have the syntax `hmx derive <base> <out> --name <name>`, with
+repeatable `--replace <FieldId>=<file>` and `--set <FieldId>=<JSON>` mutations,
+and optional `--allow-non-parameter` and `--record <path>` arguments. At least
+one `--replace` or `--set` mutation MUST be supplied. A successful command MUST
+materialize at `out` a complete, standalone HMX package with a complete manifest
+and artifact tree. It MUST NOT add `base`, `extends`, `delta`, provenance, or any
+other lineage field to the manifest.
+Duplicate mutation targets and conflicting mutations resolving to the same scalar key or replacement artifact MUST be rejected, and last-write-wins behavior MUST NOT be used.
+
+10.6 Each mutation argument MUST be split at its first `=`. Its left side MUST
+be preserved byte-for-byte as the candidate `FieldId` and resolved only through
+the physical-source inventory defined by §7.3 and §11: scalar-object keys; exact
+manifest `variable` values on artifacts other than
+`parquet/domain_attributes_v1`; and exact non-`entity_index` columns of
+`parquet/domain_attributes_v1`. Artifact roles MUST NOT be parsed or inferred
+into field IDs. Case folding, trimming, prefixing, normalization, and naming
+conventions MUST NOT create an alternate lookup path. A field absent from the
+registry or without the required exact source MUST be refused immediately.
+
+10.7 `--replace` MUST replace the complete non-scalar artifact that supplies the
+exact target field. Because replacement is artifact-level, every exact
+registered `FieldId` supplied by that artifact MUST be enumerated as affected.
+By default, every affected field MUST have semantic role `parameter`.
+`--allow-non-parameter` MAY waive only this semantic-role check for `--replace`;
+the command MUST issue a prominent warning, and every affected non-parameter
+exact field ID MUST appear in `non_parameter_overrides` (§10.9). The flag MUST
+NOT permit an artifact role, unmatched variable or column, undeclared variable,
+or registry-absent identifier to be a target.
+
+A COG replacement MUST be refused when either the existing artifact or the
+proposed replacement has more than one band. The general HMX 0.2 package
+contract permits multi-band COGs (§7.1), but the manifest exposes only one
+`variable`, so an artifact-level multi-band replacement cannot enumerate every
+affected exact `FieldId`. This refusal is unconditional; neither
+`--allow-non-parameter` nor any other M3 option may bypass it.
+
+10.8 `--set` MUST edit only a value already present under the exact target key
+in the package's single `hmx/parameter_scalars_v1` artifact. The target MUST
+have semantic role `parameter`, regardless of `--allow-non-parameter`. For
+registry `extent: scalar`, the right-hand side MUST be one finite JSON number.
+For `extent: per_layer`, it MUST be a JSON array literal of finite JSON numbers
+whose length exactly equals the positive registry-owned `layer_count`. Strings,
+booleans, null, objects, nested arrays, non-JSON numeric spellings, and a
+number/array shape contrary to the registry extent MUST be refused.
+
+A missing scalar artifact, absent scalar key, missing registry field, wrong
+semantic role, physical-source conversion, invalid JSON shape, non-finite value,
+or wrong array length MUST be refused before output construction. `--set` MUST
+NOT convert a raster or table source to scalar representation and MUST NOT
+create a missing scalar artifact or key.
+
+10.9 Every successful `derive` invocation MUST emit exactly one JSON derivation
+record on stdout conforming to `schemas/derive.schema.json`. Its
+`base_content_hash` MUST equal the hmx-core §9 content hash of `base`, and its
+`derived_content_hash` MUST equal the hmx-core §9 content hash of the completed
+derived package. When `--record <path>` is supplied, that path MUST receive the
+same JSON bytes emitted on stdout during that invocation. The resolved record
+path MUST be outside the derived package root: it MUST NOT equal `out` or resolve
+to a descendant of `out`. An unsafe path MUST be refused. Diagnostics MUST use
+`tracing`; stdout is reserved for the single JSON record.
+
+The derivation record is external provenance. It MUST NOT appear in the derived
+package manifest or artifact tree and MUST NOT contribute to the package content
+hash. A `--set` operation records the scalar artifact role, only its changed
+scalar keys, and the old and new digest of the complete scalar JSON artifact. A
+`--replace` operation records the replaced artifact role, every exact registered
+field affected by the artifact-level swap, and the complete old and new artifact
+digests.
+
+10.10 Derivation-record serialization MUST emit object keys in ascending bytewise
+order: root keys `base_content_hash`, `created_at`, `derived_content_hash`,
+`derived_name`, `non_parameter_overrides`, `replaced`, `tool_version`;
+content-hash keys `algo`, `value`; and replacement keys `artifact_role`,
+`field_ids`, `new_sha256`, `old_sha256`. Every `field_ids` array and
+`non_parameter_overrides` MUST be sorted and deduplicated in ascending bytewise
+`FieldId` order. `replaced` entries MUST be sorted in ascending bytewise
+`artifact_role` order, using their sorted `field_ids` arrays as the tie-breaker.
+The serialized value MUST end with exactly one newline.
+`tool_version` MUST equal the hmx CLI package version compiled into the executable as `CARGO_PKG_VERSION`.
+
+Each invocation MUST create a fresh RFC 3339 UTC `created_at` timestamp.
+Consequently, separate runs of the same derivation are not byte-stable. Within
+one invocation, stdout and the optional `--record` file MUST be byte-for-byte
+identical.
 
 ## 11. Conformance — the MUST checklist (validator scope)
 

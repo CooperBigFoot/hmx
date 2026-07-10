@@ -1,0 +1,13 @@
+{
+  "registry_version": "1",
+  "fields": [
+    {"id":"cell.snow_melt_threshold_c","domain":"cell","quantity":"snow_melt_threshold","units":"degC","value_type":"f64","time_meaning":"instant","role":"parameter","conservation_class":"none","extent":"scalar"},
+    {"id":"cell.soil_layer_capacity_mm","domain":"cell","quantity":"soil_layer_capacity","units":"mm","value_type":"f64","time_meaning":"instant","role":"parameter","conservation_class":"none","extent":"per_layer","layer_count":3},
+    {"id":"cell.spatial_coefficient","domain":"cell","quantity":"spatial_coefficient","units":"1","value_type":"f64","time_meaning":"instant","role":"parameter","conservation_class":"none","extent":"scalar"},
+    {"id":"cell.air_temperature_c","domain":"cell","quantity":"air_temperature","units":"degC","value_type":"f64","time_meaning":"instant","role":"forcing","conservation_class":"none","extent":"scalar"},
+    {"id":"cell.multiband_parameter","domain":"cell","quantity":"multiband_parameter","units":"1","value_type":"f64","time_meaning":"instant","role":"parameter","conservation_class":"none","extent":"scalar"},
+    {"id":"cell.table_parameter","domain":"cell","quantity":"table_parameter","units":"1","value_type":"f64","time_meaning":"instant","role":"parameter","conservation_class":"none","extent":"scalar"},
+    {"id":"cell.table_old_forcing","domain":"cell","quantity":"table_old_forcing","units":"1","value_type":"f64","time_meaning":"instant","role":"forcing","conservation_class":"none","extent":"scalar"},
+    {"id":"cell.table_new_forcing","domain":"cell","quantity":"table_new_forcing","units":"1","value_type":"f64","time_meaning":"instant","role":"forcing","conservation_class":"none","extent":"scalar"}
+  ]
+}

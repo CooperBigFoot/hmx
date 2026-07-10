@@ -1,0 +1,35 @@
+{
+  "base_content_hash": {
+    "algo": "sha256",
+    "value": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "created_at": "2026-07-10T12:00:00Z",
+  "derived_content_hash": {
+    "algo": "sha256",
+    "value": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "derived_name": "synthetic-calibration-variant",
+  "non_parameter_overrides": [
+    "cells.air_temperature_c"
+  ],
+  "replaced": [
+    {
+      "artifact_role": "forcing.air_temperature",
+      "field_ids": [
+        "cells.air_temperature_c"
+      ],
+      "new_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "old_sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "artifact_role": "parameter.scalars",
+      "field_ids": [
+        "cells.snow_melt_threshold_c",
+        "cells.soil_layer_capacity_mm"
+      ],
+      "new_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "old_sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+    }
+  ],
+  "tool_version": "0.1.20"
+}

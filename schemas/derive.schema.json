@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.2/derive.schema.json",
+  "title": "HMX derivation record",
+  "description": "The external provenance record emitted by the future hmx derive command (spec §10.9). Root keys are serialized in ascending bytewise order: base_content_hash, created_at, derived_content_hash, derived_name, non_parameter_overrides, replaced, tool_version. JSON Schema validates the wire shape but cannot enforce serialization or array ordering.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "base_content_hash",
+    "created_at",
+    "derived_content_hash",
+    "derived_name",
+    "non_parameter_overrides",
+    "replaced",
+    "tool_version"
+  ],
+  "properties": {
+    "base_content_hash": { "$ref": "#/$defs/content_hash" },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "A fresh RFC 3339 UTC timestamp created for this invocation."
+    },
+    "derived_content_hash": { "$ref": "#/$defs/content_hash" },
+    "derived_name": { "type": "string", "minLength": 1 },
+    "non_parameter_overrides": {
+      "description": "Unique exact non-parameter FieldIds affected under --allow-non-parameter, serialized in ascending bytewise FieldId order. JSON Schema does not enforce this ordering.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "replaced": {
+      "description": "Artifact changes sorted by ascending bytewise artifact_role, with sorted field_ids as the tie-breaker. JSON Schema does not enforce this ordering.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/replacement" }
+    },
+    "tool_version": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "content_hash": {
+      "title": "HMX package content-hash",
+      "description": "The hmx-core-computed package hash (spec §9), serialized with keys in ascending bytewise order: algo, value.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algo", "value"],
+      "properties": {
+        "algo": { "type": "string", "const": "sha256" },
+        "value": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "replacement": {
+      "title": "HMX derivation artifact replacement",
+      "description": "One changed artifact, serialized with keys in ascending bytewise order: artifact_role, field_ids, new_sha256, old_sha256. For --set, field_ids contains only changed scalar keys and the digests cover the complete scalar JSON artifact. For --replace, field_ids contains every exact registered field affected by the artifact-level swap and the digests cover the complete artifacts.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_role", "field_ids", "new_sha256", "old_sha256"],
+      "properties": {
+        "artifact_role": {
+          "description": "The non-empty role of the changed artifact in the package manifest.",
+          "type": "string",
+          "minLength": 1
+        },
+        "field_ids": {
+          "description": "Unique exact registry FieldIds, sorted and deduplicated in ascending bytewise order. JSON Schema does not enforce this ordering.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "new_sha256": { "$ref": "#/$defs/sha256" },
+        "old_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
