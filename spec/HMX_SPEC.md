@@ -244,11 +244,13 @@ MUST NOT recompute it independently.
 
 ## 10. Tooling — the contract-executing verbs
 
-10.1 HMX defines three CLI verbs: `describe`, `validate`, and `derive`.
+10.1 HMX defines four CLI verbs: `describe`, `validate`, `derive`, and
+`materialize`.
 All emit JSON to stdout. The existing `describe` and `validate` exit-code
 contract remains: `0` = conformant / success, `1` = non-conformant (a MUST that
 ran failed), `2` = structural error (e.g. the §0 hard version cut, unreadable
-manifest). `derive` is specified in §10.5–§10.10 for future implementation.
+manifest). `derive` is specified in §10.5–§10.10. `materialize` is specified in
+§10.11 for future implementation.
 
 10.2 `describe` emits a facts-only self-description conforming to
 `schemas/describe.schema.json`: the manifest identity floor, the package
@@ -318,23 +320,37 @@ or wrong array length MUST be refused before output construction. `--set` MUST
 NOT convert a raster or table source to scalar representation and MUST NOT
 create a missing scalar artifact or key.
 
-10.9 Every successful `derive` invocation MUST emit exactly one JSON derivation
-record on stdout conforming to `schemas/derive.schema.json`. Its
+10.9 Every successful `derive` and `materialize` invocation MUST emit exactly
+one JSON derivation record on stdout conforming to
+`schemas/derive.schema.json`. Its
 `base_content_hash` MUST equal the hmx-core §9 content hash of `base`, and its
 `derived_content_hash` MUST equal the hmx-core §9 content hash of the completed
-derived package. When `--record <path>` is supplied, that path MUST receive the
+output package. When `--record <path>` is supplied, that path MUST receive the
 same JSON bytes emitted on stdout during that invocation. The resolved record
-path MUST be outside the derived package root: it MUST NOT equal `out` or resolve
+path MUST be outside the output package root: it MUST NOT equal `out` or resolve
 to a descendant of `out`. An unsafe path MUST be refused. Diagnostics MUST use
 `tracing`; stdout is reserved for the single JSON record.
 
-The derivation record is external provenance. It MUST NOT appear in the derived
+The derivation record is external provenance. It MUST NOT appear in the output
 package manifest or artifact tree and MUST NOT contribute to the package content
 hash. A `--set` operation records the scalar artifact role, only its changed
 scalar keys, and the old and new digest of the complete scalar JSON artifact. A
 `--replace` operation records the replaced artifact role, every exact registered
 field affected by the artifact-level swap, and the complete old and new artifact
-digests.
+digests. Ordinary `derive` entries MUST contain real lowercase SHA-256 strings
+for both digest fields.
+
+A `materialize` record MUST contain exactly one removal entry for the scalar
+artifact. Its `artifact_role` MUST be the removed manifest role, its `field_ids`
+MUST contain every exact scalar key converted by the invocation, its
+`old_sha256` MUST be the digest declared by the base manifest, and its
+`new_sha256` MUST be JSON null. It MUST also contain exactly one addition entry
+per generated COG. Each addition MUST carry the new manifest role, the exact
+generated field ID, `old_sha256` as JSON null, and `new_sha256` as the computed
+lowercase SHA-256 of the generated COG. All four replacement-object keys MUST
+remain present. Each digest field MAY be null individually, but every entry MUST
+contain at least one real digest; an entry with both digest fields null MUST be
+rejected.
 
 10.10 Derivation-record serialization MUST emit object keys in ascending bytewise
 order: root keys `base_content_hash`, `created_at`, `derived_content_hash`,
@@ -351,6 +367,35 @@ Each invocation MUST create a fresh RFC 3339 UTC `created_at` timestamp.
 Consequently, separate runs of the same derivation are not byte-stable. Within
 one invocation, stdout and the optional `--record` file MUST be byte-for-byte
 identical.
+
+10.11 `materialize` MUST have the syntax
+`hmx materialize <base> <out> [--record <path>]`. It MUST be a one-way,
+transactional representation conversion of the single
+`hmx/parameter_scalars_v1` artifact into constant COG artifacts on the package
+grid. It MUST NOT offer an inverse conversion, an in-place mode, a mode that
+keeps both representations, or a `--name` option.
+
+A successful invocation MUST create at `out` a complete standalone HMX package.
+It MUST remove the scalar artifact from both the manifest and artifact tree and
+MUST add exactly one generated COG artifact per scalar field, leaving no scalar
+artifact in the output package. The completed staged package MUST pass full HMX
+validation before publication. The output manifest MUST retain the base package
+`name` exactly. The name is retained because materialization changes
+representation, not the parameter variant. The invocation MUST refresh manifest
+`created_at` with one fresh RFC 3339 UTC timestamp and MUST use that same
+timestamp in the derivation record. Every other unchanged manifest fact and all
+unchanged artifact bytes MUST remain unchanged. Materialization MUST NOT add
+`base`, `extends`, `delta`, provenance, or any other lineage field to the
+manifest.
+
+Before staging, the command MUST establish destination and record-path safety.
+All package construction MUST occur under staging. The completed package MUST be
+validated and content-hashed before publication. Publication MUST preserve the
+transactional safety of `derive`: any failure MUST leave no newly created output
+package, requested record, staging path, or record temporary path. The output
+record MUST follow §10.9–§10.10, with `derived_name` equal to the retained base
+package name, an empty `non_parameter_overrides` array, and hmx-core content
+hashes for the conformant input and completed output.
 
 ## 11. Conformance — the MUST checklist (validator scope)
 

@@ -1,7 +1,8 @@
 //! Process-boundary tests for the `hmx` CLI.
 
 use std::ffi::OsString;
-use std::fs;
+use std::fs::{self, File};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -9,6 +10,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use jsonschema::Validator;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use tiff::decoder::{Decoder, DecodingResult};
+use tiff::tags::Tag;
 
 static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -110,6 +113,15 @@ fn artifact_by_role<'a>(manifest: &'a Value, role: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("manifest declares artifact role {role}"))
 }
 
+fn artifact_by_variable<'a>(manifest: &'a Value, variable: &str) -> &'a Value {
+    manifest["artifacts"]
+        .as_array()
+        .expect("manifest artifacts is an array")
+        .iter()
+        .find(|artifact| artifact["variable"] == variable)
+        .unwrap_or_else(|| panic!("manifest declares artifact variable {variable}"))
+}
+
 fn digest_and_size(path: &Path) -> (String, u64) {
     let bytes = fs::read(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
     (format!("{:x}", Sha256::digest(&bytes)), bytes.len() as u64)
@@ -157,8 +169,89 @@ fn assert_failed_derive(output: &Output, required_stderr: &[&str]) {
     }
 }
 
+fn assert_failed_command(output: &Output, required_stderr: &[&str]) {
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_empty_stdout(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    for required in required_stderr {
+        assert!(
+            stderr.contains(required),
+            "stderr lacks {required:?}: {stderr}"
+        );
+    }
+}
+
 fn derive_fixture(rel: &str) -> PathBuf {
     fixture(&format!("tests/fixtures/derive/{rel}"))
+}
+
+fn materialize_fixture() -> PathBuf {
+    derive_fixture("base")
+}
+
+fn run_materialize(base: &Path, out: &Path, record: &Path) -> Output {
+    run_hmx_owned(vec![
+        "materialize".into(),
+        base.as_os_str().to_owned(),
+        out.as_os_str().to_owned(),
+        "--record".into(),
+        record.as_os_str().to_owned(),
+    ])
+}
+
+fn decode_tiff(path: &Path) -> (u16, Vec<f64>) {
+    let mut decoder = Decoder::new(BufReader::new(
+        File::open(path).unwrap_or_else(|error| panic!("open {}: {error}", path.display())),
+    ))
+    .unwrap_or_else(|error| panic!("decode {}: {error}", path.display()));
+    assert_eq!(decoder.dimensions().expect("read TIFF dimensions"), (2, 2));
+    let samples = decoder
+        .find_tag_unsigned::<u16>(Tag::SamplesPerPixel)
+        .expect("read SamplesPerPixel")
+        .unwrap_or(1);
+    let values = match decoder.read_image().expect("read TIFF pixels") {
+        DecodingResult::F64(values) => values,
+        other => panic!("expected f64 decoding, got {other:?}"),
+    };
+    (samples, values)
+}
+
+fn collect_files(root: &Path) -> Vec<PathBuf> {
+    fn visit(root: &Path, current: &Path, files: &mut Vec<PathBuf>) {
+        for entry in fs::read_dir(current).expect("read package directory") {
+            let entry = entry.expect("read package entry");
+            if entry.file_type().expect("package entry type").is_dir() {
+                visit(root, &entry.path(), files);
+            } else {
+                files.push(
+                    entry
+                        .path()
+                        .strip_prefix(root)
+                        .expect("relative package path")
+                        .to_owned(),
+                );
+            }
+        }
+    }
+
+    let mut files = Vec::new();
+    visit(root, root, &mut files);
+    files.sort();
+    files
+}
+
+fn assert_no_materialize_temporary_siblings(parent: &Path) {
+    for entry in fs::read_dir(parent).expect("read temporary parent") {
+        let name = entry.expect("read temporary entry").file_name();
+        let name = name.to_string_lossy();
+        assert!(!name.contains("hmx-staging"), "staging leak: {name}");
+        assert!(!name.contains("hmx-record"), "record leak: {name}");
+    }
 }
 
 fn assert_one_terminal_newline(bytes: &[u8]) {
@@ -843,4 +936,257 @@ fn derive_enforces_record_safety_and_cleans_staged_failure() {
         assert!(!name.contains("hmx-staging"), "staging leak: {name}");
         assert!(!name.contains("hmx-record"), "record leak: {name}");
     }
+}
+
+#[test]
+fn materialize_proves_rasters_only_package_and_record_contract() {
+    const SCALAR_ID: &str = "cell.snow_melt_threshold_c";
+    const SCALAR_ROLE: &str =
+        "parameter.materialized.8f9064ae12b0f4fbd785e178faeccef0ab390973a5eb5dd56fa3f380dd7fee4c";
+    const SCALAR_PATH: &str = "parameter/materialized/8f9064ae12b0f4fbd785e178faeccef0ab390973a5eb5dd56fa3f380dd7fee4c.tif";
+    const LAYER_ID: &str = "cell.soil_layer_capacity_mm";
+    const LAYER_ROLE: &str =
+        "parameter.materialized.569b6a9187844ced042e4395ebde5b900a6792f122cc0ecd934ffa4831dde81e";
+    const LAYER_PATH: &str = "parameter/materialized/569b6a9187844ced042e4395ebde5b900a6792f122cc0ecd934ffa4831dde81e.tif";
+    const SCALARS_DIGEST: &str = "47c039db0ac70d52f67385061afca37bcb4d41ba718090819adefb9e70b9fa97";
+
+    let temp = TempDir::new();
+    let base = materialize_fixture();
+    let out = temp.path().join("materialized");
+    let record_path = temp.path().join("materialize-record.json");
+    let output = run_materialize(&base, &out, &record_path);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "materialize stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        !String::from_utf8_lossy(&output.stderr).contains("ERROR"),
+        "materialize stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let record_bytes = fs::read(&record_path).expect("read materialize record");
+    assert_eq!(output.stdout, record_bytes);
+    assert_one_terminal_newline(&record_bytes);
+    let record = stdout_as_json(&record_bytes, "materialize record");
+    if let Err(error) = load_schema("derive.schema.json").validate(&record) {
+        panic!("materialize record must validate against derive.schema.json: {error}");
+    }
+
+    let base_manifest = read_json(&base.join("manifest.json"));
+    let out_manifest = read_json(&out.join("manifest.json"));
+    assert_eq!(out_manifest["name"], "derive-base");
+    assert_ne!(out_manifest["created_at"], base_manifest["created_at"]);
+    assert_eq!(out_manifest["created_at"], record["created_at"]);
+    assert!(!out.join("parameter/scalars.json").exists());
+    assert!(
+        out_manifest["artifacts"]
+            .as_array()
+            .expect("output artifacts")
+            .iter()
+            .all(|artifact| artifact["role"] != "parameter.scalars"
+                && artifact["format"] != "hmx/parameter_scalars_v1")
+    );
+
+    let generated = out_manifest["artifacts"]
+        .as_array()
+        .expect("output artifacts")
+        .iter()
+        .filter(|artifact| {
+            artifact["role"]
+                .as_str()
+                .is_some_and(|role| role.starts_with("parameter.materialized."))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(generated.len(), 2);
+    for (field_id, role, path) in [
+        (SCALAR_ID, SCALAR_ROLE, SCALAR_PATH),
+        (LAYER_ID, LAYER_ROLE, LAYER_PATH),
+    ] {
+        let artifact = artifact_by_variable(&out_manifest, field_id);
+        assert_eq!(artifact["role"], role);
+        assert_eq!(artifact["path"], path);
+        assert_eq!(artifact["format"], "cog");
+        assert_eq!(artifact["variable"], field_id);
+        assert_eq!(artifact["crs"], "EPSG:32645");
+        let (digest, size) = digest_and_size(&out.join(path));
+        assert_eq!(artifact["sha256"], digest);
+        assert_eq!(artifact["size_bytes"], size);
+    }
+
+    for base_artifact in base_manifest["artifacts"]
+        .as_array()
+        .expect("base artifacts")
+        .iter()
+        .filter(|artifact| artifact["role"] != "parameter.scalars")
+    {
+        let role = base_artifact["role"].as_str().expect("base artifact role");
+        let retained = artifact_by_role(&out_manifest, role);
+        assert_eq!(retained, base_artifact, "declaration changed for {role}");
+        let path = base_artifact["path"].as_str().expect("base artifact path");
+        assert_eq!(
+            fs::read(base.join(path)).expect("read base artifact"),
+            fs::read(out.join(path)).expect("read output artifact"),
+            "bytes changed for {role}"
+        );
+    }
+
+    let mut declared_files = out_manifest["artifacts"]
+        .as_array()
+        .expect("output artifacts")
+        .iter()
+        .map(|artifact| PathBuf::from(artifact["path"].as_str().expect("artifact path")))
+        .collect::<Vec<_>>();
+    declared_files.push(PathBuf::from("manifest.json"));
+    declared_files.sort();
+    assert_eq!(collect_files(&out), declared_files);
+
+    assert_eq!(decode_tiff(&out.join(SCALAR_PATH)), (1, vec![0.5; 4]));
+    assert_eq!(
+        decode_tiff(&out.join(LAYER_PATH)),
+        (
+            3,
+            vec![
+                100.0, 150.0, 200.0, 100.0, 150.0, 200.0, 100.0, 150.0, 200.0, 100.0, 150.0, 200.0,
+            ]
+        )
+    );
+
+    assert_eq!(record["derived_name"], "derive-base");
+    assert_eq!(record["non_parameter_overrides"], json!([]));
+    assert_eq!(record["tool_version"], env!("CARGO_PKG_VERSION"));
+    let replacements = record["replaced"].as_array().expect("record replacements");
+    assert_eq!(replacements.len(), 3);
+    for (field_id, role, path) in [
+        (SCALAR_ID, SCALAR_ROLE, SCALAR_PATH),
+        (LAYER_ID, LAYER_ROLE, LAYER_PATH),
+    ] {
+        let replacement = replacements
+            .iter()
+            .find(|replacement| replacement["artifact_role"] == role)
+            .unwrap_or_else(|| panic!("record addition for {role}"));
+        assert_eq!(replacement["field_ids"], json!([field_id]));
+        assert_eq!(replacement["old_sha256"], Value::Null);
+        assert_eq!(
+            replacement["new_sha256"],
+            digest_and_size(&out.join(path)).0
+        );
+    }
+    let removal = replacements
+        .iter()
+        .find(|replacement| replacement["artifact_role"] == "parameter.scalars")
+        .expect("scalar removal record");
+    assert_eq!(removal["field_ids"], json!([SCALAR_ID, LAYER_ID]));
+    assert_eq!(removal["old_sha256"], SCALARS_DIGEST);
+    assert_eq!(removal["new_sha256"], Value::Null);
+
+    assert_valid_package(&out);
+    assert_eq!(describe(&base)["content_hash"], record["base_content_hash"]);
+    assert_eq!(
+        describe(&out)["content_hash"],
+        record["derived_content_hash"]
+    );
+}
+
+#[test]
+fn materialize_refuses_descendant_record_path_atomically() {
+    let temp = TempDir::new();
+    let out = temp.path().join("descendant-out");
+    let record = out.join("record.json");
+    let output = run_materialize(&materialize_fixture(), &out, &record);
+    let out_text = out.to_string_lossy();
+    assert_failed_command(&output, &["resolving existing record parent", &out_text]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains(record.to_string_lossy().as_ref()),
+        "stderr names descendant record: {stderr}"
+    );
+    assert!(!out.exists());
+    assert!(!record.exists());
+    assert_no_materialize_temporary_siblings(temp.path());
+}
+
+#[test]
+fn materialize_refuses_rasters_only_base_atomically() {
+    let temp = TempDir::new();
+    let first_out = temp.path().join("first-out");
+    let first_record = temp.path().join("first-record.json");
+    let first = run_materialize(&materialize_fixture(), &first_out, &first_record);
+    assert_eq!(
+        first.status.code(),
+        Some(0),
+        "first materialize stderr: {}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    assert_valid_package(&first_out);
+
+    let second_out = temp.path().join("second-out");
+    let second_record = temp.path().join("second-record.json");
+    let second = run_materialize(&first_out, &second_out, &second_record);
+    assert_failed_command(
+        &second,
+        &["materialize requires exactly one hmx/parameter_scalars_v1 artifact; found 0"],
+    );
+    assert_valid_package(&first_out);
+    assert!(!second_out.exists());
+    assert!(!second_record.exists());
+    assert_no_materialize_temporary_siblings(temp.path());
+}
+
+#[test]
+fn materialize_refuses_existing_destination_without_modification() {
+    let temp = TempDir::new();
+    let out = temp.path().join("existing-out");
+    fs::create_dir(&out).expect("create existing output");
+    let sentinel = out.join("sentinel.bin");
+    fs::write(&sentinel, b"existing destination sentinel").expect("write sentinel");
+    let before = collect_files(&out);
+    let record = temp.path().join("existing-record.json");
+    let output = run_materialize(&materialize_fixture(), &out, &record);
+    assert_failed_command(&output, &["output path already exists:"]);
+    assert_eq!(
+        fs::read(&sentinel).expect("read sentinel"),
+        b"existing destination sentinel"
+    );
+    assert_eq!(collect_files(&out), before);
+    assert!(!out.join("manifest.json").exists());
+    assert!(!out.join("parameter/materialized").exists());
+    assert!(!record.exists());
+    assert_no_materialize_temporary_siblings(temp.path());
+}
+
+#[test]
+fn materialize_refuses_generated_path_prefix_collision_atomically() {
+    const COLLISION: &str = "generated artifact path collision `parameter/materialized/8f9064ae12b0f4fbd785e178faeccef0ab390973a5eb5dd56fa3f380dd7fee4c.tif`";
+
+    let temp = TempDir::new();
+    let base = temp.path().join("collision-base");
+    copy_tree(&materialize_fixture(), &base);
+    let old_path = base.join("parameter/spatial_coefficient.tif");
+    let collision_path = base.join("parameter/materialized");
+    fs::rename(&old_path, &collision_path).expect("rename collision artifact");
+    let manifest_path = base.join("manifest.json");
+    let mut manifest = read_json(&manifest_path);
+    manifest["artifacts"]
+        .as_array_mut()
+        .expect("manifest artifacts")
+        .iter_mut()
+        .find(|artifact| artifact["role"] == "parameter.spatial_coefficient")
+        .expect("spatial artifact")["path"] = Value::String("parameter/materialized".into());
+    fs::write(
+        &manifest_path,
+        serde_json::to_vec(&manifest).expect("serialize collision manifest"),
+    )
+    .expect("write collision manifest");
+    assert_valid_package(&base);
+
+    let out = temp.path().join("collision-out");
+    let record = temp.path().join("collision-record.json");
+    let output = run_materialize(&base, &out, &record);
+    assert_failed_command(&output, &[COLLISION]);
+    assert!(!out.exists());
+    assert!(!record.exists());
+    assert_no_materialize_temporary_siblings(temp.path());
 }

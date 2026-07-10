@@ -18,7 +18,9 @@ use tracing::error;
 use hmx_core::describe::describe_json;
 use hmx_core::validate::validate;
 
+mod derivation;
 mod derive;
+mod materialize;
 
 /// The `hmx` CLI: a thin JSON-emitting surface over the `hmx-core` verbs (A9+).
 #[derive(Debug, Parser)]
@@ -69,6 +71,18 @@ enum Command {
         #[arg(long, value_name = "PATH")]
         record: Option<PathBuf>,
     },
+    /// Materialize scalar parameters as constant COGs.
+    Materialize {
+        /// Base HMX package root.
+        #[arg(value_name = "BASE")]
+        base: PathBuf,
+        /// New standalone HMX package root.
+        #[arg(value_name = "OUT")]
+        out: PathBuf,
+        /// Write an identical external derivation record.
+        #[arg(long, value_name = "PATH")]
+        record: Option<PathBuf>,
+    },
 }
 
 const EXIT_NON_CONFORMANT: u8 = 1;
@@ -95,6 +109,33 @@ fn main() -> ExitCode {
             allow_non_parameter,
             record,
         } => derive_exit(base, out, name, replace, set, allow_non_parameter, record),
+        Command::Materialize { base, out, record } => materialize_exit(base, out, record),
+    }
+}
+
+fn materialize_exit(base: PathBuf, out: PathBuf, record: Option<PathBuf>) -> ExitCode {
+    let operation = || -> Result<Vec<u8>> {
+        let request = materialize::MaterializeRequest::new(base.clone(), out.clone(), record);
+        materialize::execute(request).with_context(|| {
+            format!(
+                "materializing scalar parameters from {} to {}",
+                base.display(),
+                out.display()
+            )
+        })
+    };
+    match operation() {
+        Ok(bytes) => match std::io::stdout().write_all(&bytes) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                error!(error = %err, "writing materialization record to stdout failed");
+                ExitCode::from(EXIT_ERROR)
+            }
+        },
+        Err(err) => {
+            error!(base = %base.display(), out = %out.display(), error = %format!("{err:#}"), "materialize failed");
+            ExitCode::from(EXIT_ERROR)
+        }
     }
 }
 
