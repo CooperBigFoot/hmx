@@ -21,6 +21,12 @@ pub(crate) fn canonical_bytes(manifest: &Manifest) -> Result<Vec<u8>, CoreError>
     Ok(canonical.into_bytes())
 }
 
+pub(crate) fn manifest_file_bytes(manifest: &Manifest) -> Result<Vec<u8>, CoreError> {
+    let mut bytes = canonical_bytes(manifest)?;
+    bytes.push(b'\n');
+    Ok(bytes)
+}
+
 fn sort_json_value(value: Value) -> Value {
     match value {
         Value::Object(object) => {

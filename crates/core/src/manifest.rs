@@ -130,6 +130,41 @@ impl Manifest {
         &self.artifacts
     }
 
+    /// Reconstructs this manifest for a standalone derived package.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::EmptyField`] when `name` is empty.
+    pub fn reconstruct_for_derivation(
+        &self,
+        name: String,
+        created_at: OffsetDateTime,
+        artifacts: Vec<Artifact>,
+    ) -> Result<Self, CoreError> {
+        Ok(Self {
+            format_version: self.format_version,
+            name: PackageName::new(require_non_empty(name, "name")?),
+            created_at,
+            producer: self.producer.clone(),
+            producer_version: self.producer_version.clone(),
+            package_kind: self.package_kind,
+            crs: self.crs.clone(),
+            grid: self.grid.clone(),
+            domains: self.domains.clone(),
+            mappings: self.mappings.clone(),
+            artifacts,
+        })
+    }
+
+    /// Serializes deterministic compact manifest JSON ending in one newline.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::CanonicalizeFailed`] if serialization fails.
+    pub fn deterministic_json_bytes(&self) -> Result<Vec<u8>, CoreError> {
+        crate::canonical::manifest_file_bytes(self)
+    }
+
     /// Computes the package content-hash (spec §9, D1).
     ///
     /// # Errors
@@ -319,9 +354,12 @@ fn extract_backticked(message: &str, prefix: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use time::OffsetDateTime;
+
     use crate::CoreError;
+    use crate::canonical::canonical_bytes;
     use crate::manifest::Manifest;
-    use crate::types::{ArtifactFormat, FormatVersion, MappingPurpose};
+    use crate::types::{ArtifactFormat, FormatVersion, MappingPurpose, Sha256};
 
     const VALID_MANIFEST: &str = r#"{
   "format_version": "0.2",
@@ -377,6 +415,66 @@ mod tests {
             manifest.artifacts()[1].path.as_str(),
             "parameter/scalars.json"
         );
+    }
+
+    #[test]
+    fn derivation_reconstruction_changes_only_requested_facts() {
+        let original = parse_valid();
+        let timestamp = OffsetDateTime::from_unix_timestamp(1_800_000_000)
+            .expect("test timestamp is representable");
+        let mut artifacts = original.artifacts().to_vec();
+        artifacts[1].sha256 =
+            Sha256::new("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        artifacts[1].size_bytes = Some(7);
+        let derived = original
+            .reconstruct_for_derivation("derived".to_string(), timestamp, artifacts.clone())
+            .expect("reconstruction succeeds");
+
+        assert_eq!(derived.name().as_str(), "derived");
+        assert_eq!(derived.created_at(), timestamp);
+        assert_eq!(derived.artifacts(), artifacts);
+        assert_eq!(derived.format_version(), original.format_version());
+        assert_eq!(derived.producer(), original.producer());
+        assert_eq!(derived.producer_version(), original.producer_version());
+        assert_eq!(derived.package_kind(), original.package_kind());
+        assert_eq!(derived.crs(), original.crs());
+        assert_eq!(derived.grid(), original.grid());
+        assert_eq!(derived.domains(), original.domains());
+        assert_eq!(derived.mappings(), original.mappings());
+        assert_eq!(derived.artifacts()[0], original.artifacts()[0]);
+    }
+
+    #[test]
+    fn derivation_reconstruction_rejects_empty_name() {
+        let original = parse_valid();
+        match original.reconstruct_for_derivation(
+            String::new(),
+            original.created_at(),
+            original.artifacts().to_vec(),
+        ) {
+            Err(CoreError::EmptyField { field }) => assert_eq!(field, "name"),
+            other => panic!("expected EmptyField, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn deterministic_manifest_file_bytes_round_trip_without_changing_identity() {
+        let manifest = parse_valid();
+        let bytes = manifest
+            .deterministic_json_bytes()
+            .expect("manifest serialization succeeds");
+        assert!(bytes.ends_with(b"\n"));
+        assert!(!bytes[..bytes.len() - 1].contains(&b'\n'));
+        let text = std::str::from_utf8(&bytes).expect("manifest bytes are UTF-8");
+        let reparsed = Manifest::from_json(text).expect("serialized manifest parses");
+        assert_eq!(
+            reparsed.content_hash().expect("reparsed hash succeeds"),
+            manifest.content_hash().expect("typed hash succeeds")
+        );
+        let canonical = canonical_bytes(&manifest).expect("canonical bytes serialize");
+        assert!(!canonical.ends_with(b"\n"));
+        assert_eq!(&bytes[..bytes.len() - 1], canonical);
+        assert!(text.starts_with("{\"artifacts\":"));
     }
 
     #[test]
