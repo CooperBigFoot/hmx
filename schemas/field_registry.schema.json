@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hydrology-model-exchange.org/schemas/v0.1/field_registry.schema.json",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.2/field_registry.schema.json",
   "title": "HMX field registry",
   "description": "The typed field registry artifact (registry/fields.json, format hmx/field_registry_v1; spec §6, OD3). A SEPARATE validated package artifact. conservation_class is a first-class attribute (OD3), not derived from exchange obligations.",
   "type": "object",

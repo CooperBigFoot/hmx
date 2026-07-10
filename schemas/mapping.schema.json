@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hydrology-model-exchange.org/schemas/v0.1/mapping.schema.json",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.2/mapping.schema.json",
   "title": "HMX mapping declaration",
   "description": "A single explicit cross-domain mapping declaration (spec §8). Standalone form of the manifest's mappings[] item. When purpose == cell_to_gauge, variable is required.",
   "type": "object",

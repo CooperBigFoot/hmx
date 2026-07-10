@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hydrology-model-exchange.org/schemas/v0.1/validate.schema.json",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.2/validate.schema.json",
   "title": "HMX validate report",
   "description": "The validation report the validate verb emits (spec §10.3): {checks, conformant}, additionalProperties:false. conformant is true iff no check that RAN failed (fail-closed). The CLOSED set of check ids + the severity model + --strict are owned by step A8 (OD6); this schema constrains the wire shape only and leaves id as a non-empty string. A8 MAY file a one-field revision (spec §14) to pin id to an enum or add severity. Versioned implicitly by manifest format_version.",
   "type": "object",

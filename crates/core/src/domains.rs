@@ -131,12 +131,11 @@ pub fn cross_check(
     mapping: &MappingGeometry,
 ) -> Result<(), CardinalityError> {
     let domain = descriptor.domain().as_str().to_string();
-    let side =
-        mapping
-            .side_for_domain(descriptor.domain())
-            .ok_or_else(|| CardinalityError::DomainNotInMapping {
-                domain: domain.clone(),
-            })?;
+    let side = mapping
+        .side_for_domain(descriptor.domain())
+        .ok_or_else(|| CardinalityError::DomainNotInMapping {
+            domain: domain.clone(),
+        })?;
 
     if let Some(index) = mapping
         .indices_on(side)
@@ -214,7 +213,11 @@ fn check_attribute_index(
     descriptor: &DomainDescriptor,
     source: &DomainAttributes,
 ) -> Result<(), CardinalityError> {
-    let indices = source.entity_index().iter().copied().collect::<BTreeSet<_>>();
+    let indices = source
+        .entity_index()
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
     let dense = if descriptor.entity_count() == 0 {
         source.num_rows() == 0 && indices.is_empty()
     } else {
@@ -345,9 +348,7 @@ mod tests {
         let batch = RecordBatch::try_new(
             Arc::clone(&schema),
             vec![
-                Arc::new(Int64Array::from(
-                    (0..len as i64).collect::<Vec<i64>>(),
-                )),
+                Arc::new(Int64Array::from((0..len as i64).collect::<Vec<i64>>())),
                 Arc::new(Int64Array::from(target_index)),
                 Arc::new(Float64Array::from(vec![1.0; len])),
             ],
@@ -477,8 +478,8 @@ mod tests {
         ));
 
         let gapped = read_synthetic_geometry(vec![0, 1, 3]);
-        let error = derive_cardinality(&gapped, MappingSide::Target)
-            .expect_err("internal gap must fail");
+        let error =
+            derive_cardinality(&gapped, MappingSide::Target).expect_err("internal gap must fail");
         assert!(matches!(
             error,
             CardinalityError::NonDenseMapping {
@@ -495,12 +496,7 @@ mod tests {
         let path_a = temp_path("domain-attributes-a");
         let path_b = temp_path("domain-attributes-b");
         write_attributes(&path_a, vec![0, 1, 2], "ice_volume", vec![1.0, 2.0, 3.0]);
-        write_attributes(
-            &path_b,
-            vec![0, 1, 2],
-            "ice_volume",
-            vec![10.0, 20.0, 30.0],
-        );
+        write_attributes(&path_b, vec![0, 1, 2], "ice_volume", vec![10.0, 20.0, 30.0]);
         let source_a = read_domain_attributes(&path_a).expect("attributes must read");
         let source_b = read_domain_attributes(&path_b).expect("attributes must read");
         std::fs::remove_file(&path_a).ok();

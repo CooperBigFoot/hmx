@@ -38,7 +38,11 @@ impl ControlTable {
 
     /// Returns the arrow column names in schema order.
     pub fn column_names(&self) -> Vec<&str> {
-        self.schema.fields().iter().map(|f| f.name().as_str()).collect()
+        self.schema
+            .fields()
+            .iter()
+            .map(|f| f.name().as_str())
+            .collect()
     }
 
     /// Materializes a required non-null `Int64` column across all batches.
@@ -51,9 +55,7 @@ impl ControlTable {
                 .ok_or_else(|| self.malformed(format!("column `{name}` missing or not int64")))?;
             for index in 0..column.len() {
                 if column.is_null(index) {
-                    return Err(self.malformed(format!(
-                        "null in required int64 column `{name}`"
-                    )));
+                    return Err(self.malformed(format!("null in required int64 column `{name}`")));
                 }
                 values.push(column.value(index));
             }
@@ -71,9 +73,7 @@ impl ControlTable {
                 .ok_or_else(|| self.malformed(format!("column `{name}` missing or not float64")))?;
             for index in 0..column.len() {
                 if column.is_null(index) {
-                    return Err(self.malformed(format!(
-                        "null in required float64 column `{name}`"
-                    )));
+                    return Err(self.malformed(format!("null in required float64 column `{name}`")));
                 }
                 values.push(column.value(index));
             }
@@ -457,7 +457,9 @@ mod tests {
         std::fs::remove_file(&path).ok();
 
         assert_eq!(
-            table.string_column("domain").expect("utf8 column must read"),
+            table
+                .string_column("domain")
+                .expect("utf8 column must read"),
             vec![Some("cell".to_string()), None, Some("glacier".to_string())]
         );
     }

@@ -16,4 +16,4 @@ FINAL modulo a single, named, logged escape hatch (spec §14):
 
 | Date | Step | Schema | Field changed | Reason | Linter + round-trip re-run |
 |------|------|--------|---------------|--------|----------------------------|
-| —    | —    | —      | —             | No revisions filed. | —              |
+| 2026-07-10 | M1-S1 | `describe`, `domain`, `field_registry`, `manifest`, `mapping`, `validate` | Schema `$id` version paths; manifest and describe `format_version` constraints | Deliberate coordinated hard cut: 0.2 is now the only accepted HMX contract version. | Metaschema lint, example/fixture tests, conformance regeneration and blessing, golden schema validation, workspace tests/build, and validator gates. |

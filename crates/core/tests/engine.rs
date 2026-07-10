@@ -48,13 +48,17 @@ fn unknown_format_version_is_structural_error() {
     let manifest = fs::read_to_string(dir.join("manifest.json")).expect("manifest exists");
     fs::write(
         dir.join("manifest.json"),
-        manifest.replacen(r#""format_version": "0.1""#, r#""format_version": "0.2""#, 1),
+        manifest.replacen(
+            r#""format_version": "0.2""#,
+            r#""format_version": "0.1""#,
+            1,
+        ),
     )
     .expect("rewrite manifest");
 
     match validate(&dir) {
         Err(ValidateError::Manifest(CoreError::UnknownFormatVersion { found })) => {
-            assert_eq!(found, "0.2");
+            assert_eq!(found, "0.1");
         }
         other => panic!("expected unknown format structural error, got {other:?}"),
     }
@@ -123,8 +127,11 @@ fn path_traversal_substring_flips_conformant() {
 fn zarr_non_consolidated_is_a_clean_check_failure() {
     let dir = temp_package("zarr-non-consolidated");
     write_valid_package(&dir);
-    fs::write(dir.join("forcing/flow.zarr/zarr.json"), r#"{"zarr_format":3}"#)
-        .expect("rewrite zarr root");
+    fs::write(
+        dir.join("forcing/flow.zarr/zarr.json"),
+        r#"{"zarr_format":3}"#,
+    )
+    .expect("rewrite zarr root");
 
     let report = validate(&dir).expect("zarr read failure is a check failure");
     assert!(!report.conformant());
@@ -189,7 +196,11 @@ fn describe_on_valid_package_carries_hash_and_facts() {
     assert_eq!(description.manifest().domains().len(), 2);
     assert_eq!(description.fields().len(), 1);
     assert_eq!(description.fields()[0].id().as_str(), "cell.slope");
-    assert!(describe_json(&dir).expect("description json").contains("content_hash"));
+    assert!(
+        describe_json(&dir)
+            .expect("description json")
+            .contains("content_hash")
+    );
 
     remove_dir(&dir);
 }
@@ -240,7 +251,7 @@ fn write_manifest(dir: &Path, include_gauge_long: bool) {
         dir.join("manifest.json"),
         format!(
             r#"{{
-  "format_version": "0.1",
+  "format_version": "0.2",
   "name": "synthetic-glacier-mini",
   "created_at": "2026-06-29T00:00:00Z",
   "producer": "hmx-core-a8-test",

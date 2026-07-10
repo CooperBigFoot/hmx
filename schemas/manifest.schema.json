@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hydrology-model-exchange.org/schemas/v0.1/manifest.schema.json",
+  "$id": "https://hydrology-model-exchange.org/schemas/v0.2/manifest.schema.json",
   "title": "HMX manifest",
   "description": "The HMX single-basin model-input manifest (spec §3). Exactly eleven top-level keys: additionalProperties:false rejects any out-of-band field (e.g. a stray glacier_count, F2/F10) and required lists them all. The content-hash is NOT carried here (it is computed by hmx-core, spec §9). Entity cardinality lives ONLY in domains[].entity_count (spec §5, OD4). On-disk encodings reuse the bluesmith formats (spec §7, OD5).",
   "type": "object",
@@ -20,9 +20,9 @@
   ],
   "properties": {
     "format_version": {
-      "description": "Hard version cut, read first (spec §0). The only recognized value is \"0.1\"; any other is a structural rejection.",
+      "description": "Hard version cut, read first (spec §0). The only recognized value is \"0.2\"; any other is a structural rejection.",
       "type": "string",
-      "enum": ["0.1"]
+      "enum": ["0.2"]
     },
     "name": {
       "description": "Package identity string (spec §3.4).",
@@ -45,7 +45,7 @@
       "minLength": 1
     },
     "package_kind": {
-      "description": "HMX 0.1 describes input packages only (spec §3.3).",
+      "description": "HMX 0.2 describes input packages only (spec §3.3).",
       "type": "string",
       "const": "input"
     },

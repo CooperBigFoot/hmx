@@ -283,10 +283,7 @@ mod tests {
         assert_eq!(glacier.quantity().as_str(), "volume");
         assert_eq!(glacier.units().as_str(), "m3");
         assert_eq!(glacier.role(), SemanticRole::DifferentialState);
-        assert_eq!(
-            glacier.conservation_class(),
-            ConservationClass::WaterVolume
-        );
+        assert_eq!(glacier.conservation_class(), ConservationClass::WaterVolume);
         assert_eq!(glacier.value_type(), ValueType::F64);
         assert_eq!(glacier.time_meaning(), FieldTimeMeaning::Instant);
         assert_eq!(glacier.extent(), Extent::Scalar);
@@ -334,7 +331,10 @@ mod tests {
 
     #[test]
     fn unknown_value_type_rejected() {
-        match parse_err(replace_once(r#""value_type": "f64""#, r#""value_type": "f128""#)) {
+        match parse_err(replace_once(
+            r#""value_type": "f64""#,
+            r#""value_type": "f128""#,
+        )) {
             CoreError::InvalidEnumValue { field, found } => {
                 assert_eq!(field, "value_type");
                 assert_eq!(found, "f128");

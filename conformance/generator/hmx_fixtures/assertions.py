@@ -57,7 +57,7 @@ def assert_valid(root: Path, *, minimal: bool) -> None:
     """Assert a valid fixture's writer-side contract."""
     manifest = read_json(root / "manifest.json")
     _require(list(manifest.keys()) == MANIFEST_FIELDS, f"{root}: manifest field order/shape drift")
-    _require(manifest["format_version"] == "0.1", f"{root}: wrong format_version")
+    _require(manifest["format_version"] == "0.2", f"{root}: wrong format_version")
     _require(manifest["package_kind"] == "input", f"{root}: wrong package_kind")
 
     domains = {d["id"]: d for d in manifest["domains"]}  # type: ignore[index]
