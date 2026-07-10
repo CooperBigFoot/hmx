@@ -1,0 +1,27 @@
+{
+  "format_version": "0.2",
+  "name": "derive-base",
+  "created_at": "2026-07-10T00:00:00Z",
+  "producer": "hmx-test-fixture",
+  "producer_version": "0.1.21",
+  "package_kind": "input",
+  "crs": "EPSG:32645",
+  "grid": {
+    "crs": "EPSG:32645",
+    "extent": {"xmin": 0.0, "ymin": 500.0, "xmax": 500.0, "ymax": 1000.0},
+    "cell_size": 250.0,
+    "nx": 2,
+    "ny": 2,
+    "origin": "upper_left"
+  },
+  "domains": [{"id": "cell", "entity_count": 4, "index_base": "dense_zero_based"}],
+  "mappings": [],
+  "artifacts": [
+    {"role":"registry.fields","path":"registry/fields.json","format":"hmx/field_registry_v1","sha256":"d042f6990c5564fa2656a3749be91904dd1020ad5c038ec5ceac18b91dfab936","size_bytes":1723},
+    {"role":"parameter.scalars","path":"parameter/scalars.json","format":"hmx/parameter_scalars_v1","sha256":"47c039db0ac70d52f67385061afca37bcb4d41ba718090819adefb9e70b9fa97","size_bytes":85},
+    {"role":"parameter.spatial_coefficient","path":"parameter/spatial_coefficient.tif","format":"cog","sha256":"aa4d159bdd428cc219359117f9318c19e7737db371f15a5419d2d033d4234e7a","size_bytes":1396,"variable":"cell.spatial_coefficient","crs":"EPSG:32645"},
+    {"role":"forcing.air_temperature","path":"forcing/air_temperature.tif","format":"cog","sha256":"8321a6dbe8bfda20d1d689a0779a01f6bf1fdeb2b20bf5dfdb7731d36a016ee4","size_bytes":1396,"variable":"cell.air_temperature_c","crs":"EPSG:32645"},
+    {"role":"parameter.multiband","path":"parameter/multiband_parameter.tif","format":"cog","sha256":"87a55a70b9147763c5c482ac179980b3ea71b48062941e0f89bff0ff7f13c947","size_bytes":2432,"variable":"cell.multiband_parameter","crs":"EPSG:32645"},
+    {"role":"attributes.calibration","path":"attributes/calibration.parquet","format":"parquet/domain_attributes_v1","sha256":"1694447702a4a230d1cad5d6a66c5f7e09d526efc4ff5bcf3ec65fc88b062789","size_bytes":1143,"domain":"cell"}
+  ]
+}
