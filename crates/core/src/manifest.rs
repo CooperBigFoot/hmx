@@ -347,7 +347,8 @@ mod tests {
     { "purpose": "cell_to_glacier", "source_domain": "cell", "target_domain": "glacier", "artifact_role": "mapping.cell_to_glacier" }
   ],
   "artifacts": [
-    { "role": "registry.fields", "path": "registry/fields.json", "format": "hmx/field_registry_v1", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size_bytes": 512 }
+    { "role": "registry.fields", "path": "registry/fields.json", "format": "hmx/field_registry_v1", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size_bytes": 512 },
+    { "role": "parameter.scalars", "path": "parameter/scalars.json", "format": "hmx/parameter_scalars_v1", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "size_bytes": 96 }
   ]
 }"#;
 
@@ -367,6 +368,14 @@ mod tests {
         assert_eq!(
             manifest.artifacts()[0].format,
             ArtifactFormat::FieldRegistryV1
+        );
+        assert_eq!(
+            manifest.artifacts()[1].format,
+            ArtifactFormat::ParameterScalarsV1
+        );
+        assert_eq!(
+            manifest.artifacts()[1].path.as_str(),
+            "parameter/scalars.json"
         );
     }
 

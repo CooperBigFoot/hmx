@@ -86,7 +86,7 @@
       "pattern": "^[0-9a-f]{64}$"
     },
     "format_name": {
-      "description": "The closed HMX on-disk format set (spec §7, OD5).",
+      "description": "The closed HMX on-disk format set (spec §7, OD5), including the registry-keyed JSON scalar-parameter encoding.",
       "type": "string",
       "enum": [
         "cog",
@@ -98,7 +98,8 @@
         "parquet/cell_to_reach_v1",
         "parquet/domain_attributes_v1",
         "parquet/domain_mapping_v1",
-        "hmx/field_registry_v1"
+        "hmx/field_registry_v1",
+        "hmx/parameter_scalars_v1"
       ]
     },
     "grid": {

@@ -162,12 +162,30 @@ geometry blob. The small CONTROL tables (`domain_mapping_v1`,
 | `parquet/domain_attributes_v1` | Dense per-entity attribute table | `entity_index`:int64 (dense zero-based) + one float64 column per attribute field |
 | `parquet/domain_mapping_v1` | Generic source→target mapping | `source_index`:int64, `target_index`:int64, `weight`:float64 |
 | `hmx/field_registry_v1` | JSON, conforms to `field_registry.schema.json` | (JSON; §6) |
+| `hmx/parameter_scalars_v1` | JSON object keyed by field-registry field name | (JSON numbers or non-empty numeric arrays; §7.3) |
 
 7.2 An `artifacts[]` entry has EXACTLY `role`, `path`, `format`, `sha256`
 (required) plus the optional `size_bytes`, `crs`, `domain`, `variable`, `unit`,
 `time_meaning`, `interval_seconds`, `row_count`, `first_step_index`,
 `last_step_index` (`additionalProperties:false`). `sha256` is the lowercase-hex
 SHA-256 of the artifact bytes (64 hex chars).
+
+7.3 An `hmx/parameter_scalars_v1` artifact MUST be one JSON object. Every key
+MUST be a field name from the field registry. A field with `extent: scalar` MUST
+map to a finite JSON number; a field with `extent: per_layer` MUST map to a
+non-empty array of finite JSON numbers whose length matches the registry-owned
+layer count. Each parameter field MUST have exactly one source across scalar
+entries and raster or table artifacts. The conventional package-relative path is
+`parameter/scalars.json`, but the path declared by the manifest is authoritative.
+Units, semantic role, extent, layer-count semantics, and all other field metadata
+MUST remain authoritative in `registry/fields.json` and MUST NOT be duplicated in
+the scalar artifact.
+
+The M1-S2 implementation recognizes the format, and its JSON Schema defines only
+the local JSON shape. Registry membership, the required `parameter` semantic
+role, `per_layer` array length, exactly-one-source enforcement, scalar reading,
+and conformance packages are deferred to M2; the M1-S2 validator does not open or
+parse this artifact.
 
 ## 8. Cross-domain mappings
 
@@ -234,6 +252,12 @@ present) the `external_ids.length == entity_count` + dense-index cross-check; th
 §6 field-registry presence + every-model-consumed-field-declared gate; the §7
 closed `format` set and per-format column shapes (metadata-deep); and the §8
 mapping declarations resolving to real artifacts.
+
+For `hmx/parameter_scalars_v1`, the complete validator contract additionally
+MUST check registry membership and the `parameter` semantic role, enforce each
+`per_layer` array length against registry-owned layer semantics, and require
+exactly one source across scalar entries and raster or table artifacts. These
+semantic checks are M2 work and are not implemented by M1-S2.
 
 11.2 Conformance validates FORMAT only. It MUST NOT include any evaluation,
 metric, leaderboard, or wall-time judgment (OUT of scope, §1.4).
