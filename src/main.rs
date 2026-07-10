@@ -18,6 +18,7 @@ use tracing::error;
 use hmx_core::describe::describe_json;
 use hmx_core::validate::validate;
 
+mod derivation;
 mod derive;
 
 /// The `hmx` CLI: a thin JSON-emitting surface over the `hmx-core` verbs (A9+).
