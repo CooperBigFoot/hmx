@@ -1,4 +1,4 @@
-//! Metadata-only BULK payload readers for HMX spec §7.1.
+//! Typed payload readers for HMX spec §7.
 //!
 //! These readers surface schemas, row-group metadata, GeoTIFF tags, and bounded
 //! 1-D coordinate chunks. They do not decode parquet data pages, COG pixels,
@@ -13,6 +13,7 @@ use crate::CoreError;
 pub mod cog_reader;
 pub mod control_plane;
 pub mod geoparquet_reader;
+pub mod parameter_scalars_reader;
 pub mod parquet_meta;
 pub mod zarr_reader;
 

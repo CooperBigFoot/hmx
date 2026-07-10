@@ -120,9 +120,14 @@ entry with role `registry.fields` and format `hmx/field_registry_v1`, whose `pat
 points to a JSON file conforming to `schemas/field_registry.schema.json`
 (decision OD3 — the registry is a SEPARATE validated artifact, §13).
 
-6.2 The registry lists every model-consumed and model-produced field. Each entry
-has EXACTLY `id`, `domain`, `quantity`, `units`, `value_type`, `time_meaning`,
-`role`, `conservation_class`, `extent` (`additionalProperties:false`).
+6.2 The registry lists every model-consumed and model-produced field. Every entry
+has the nine required keys `id`, `domain`, `quantity`, `units`, `value_type`,
+`time_meaning`, `role`, `conservation_class`, and `extent`. An entry with
+`extent: per_layer` additionally MUST have a positive-integer `layer_count`; an
+entry with `extent: scalar` MUST NOT carry `layer_count`
+(`additionalProperties:false`). The facts-only describe `field_fact` projection
+intentionally remains EXACTLY the original nine keys and does not expose
+`layer_count` in HMX `0.2`.
 
 6.3 `role` is the semantic role, one of `differential_state`, `parameter`,
 `forcing`, `coupling`, `diagnostic`. `value_type` is one of `f32`, `f64`, `i32`,
@@ -170,22 +175,39 @@ geometry blob. The small CONTROL tables (`domain_mapping_v1`,
 `last_step_index` (`additionalProperties:false`). `sha256` is the lowercase-hex
 SHA-256 of the artifact bytes (64 hex chars).
 
-7.3 An `hmx/parameter_scalars_v1` artifact MUST be one JSON object. Every key
-MUST be a field name from the field registry. A field with `extent: scalar` MUST
-map to a finite JSON number; a field with `extent: per_layer` MUST map to a
-non-empty array of finite JSON numbers whose length matches the registry-owned
-layer count. Each parameter field MUST have exactly one source across scalar
-entries and raster or table artifacts. The conventional package-relative path is
+7.3 An `hmx/parameter_scalars_v1` artifact MUST be one non-empty JSON object.
+Every key MUST equal a registry `FieldId` byte-for-byte and resolve to a field
+whose semantic role is `parameter`. A field with `extent: scalar` MUST map to a
+finite JSON number; a field with `extent: per_layer` MUST map to a non-empty array
+of finite JSON numbers whose length equals its positive registry-owned
+`layer_count`. The conventional package-relative path is
 `parameter/scalars.json`, but the path declared by the manifest is authoritative.
-Units, semantic role, extent, layer-count semantics, and all other field metadata
-MUST remain authoritative in `registry/fields.json` and MUST NOT be duplicated in
-the scalar artifact.
+Units, semantic role, extent, value type, `layer_count`, and all other field
+metadata MUST remain authoritative in `registry/fields.json` and MUST NOT be
+duplicated in the scalar artifact.
 
-The M1-S2 implementation recognizes the format, and its JSON Schema defines only
-the local JSON shape. Registry membership, the required `parameter` semantic
-role, `per_layer` array length, exactly-one-source enforcement, scalar reading,
-and conformance packages are deferred to M2; the M1-S2 validator does not open or
-parse this artifact.
+The parameter-source inventory uses only exact string equality to a registry
+`FieldId` whose semantic role is `parameter`:
+
+- every `hmx/parameter_scalars_v1` object key is one candidate;
+- for a raster or any other artifact whose format is not
+  `parquet/domain_attributes_v1`, the declared manifest `variable` is one
+  candidate; and
+- for a `parquet/domain_attributes_v1` artifact, every column name other than
+  `entity_index` is one candidate.
+
+Artifact `role` strings MUST NOT be parsed, transformed, prefixed, normalized,
+or otherwise inferred into registry field IDs. This inventory rule is not a global
+requirement that every artifact or mapping `variable` resolve to the registry.
+Unmatched variables on unrelated or non-parameter artifacts remain legal; in
+particular, an unrelated artifact `variable` such as `flow` may remain absent
+from the registry. Exact matches identify parameter sources without turning
+unmatched variables into failures.
+
+M2-S1 adds the registry cardinality contract and the typed scalar reader only.
+M2-S2 owns validator reporting, physical parameter-source inventory, exactly-one-
+source enforcement, and conformance packages; the M2-S1 validator does not call
+the reader.
 
 ## 8. Cross-domain mappings
 
@@ -253,11 +275,15 @@ present) the `external_ids.length == entity_count` + dense-index cross-check; th
 closed `format` set and per-format column shapes (metadata-deep); and the §8
 mapping declarations resolving to real artifacts.
 
-For `hmx/parameter_scalars_v1`, the complete validator contract additionally
-MUST check registry membership and the `parameter` semantic role, enforce each
-`per_layer` array length against registry-owned layer semantics, and require
-exactly one source across scalar entries and raster or table artifacts. These
-semantic checks are M2 work and are not implemented by M1-S2.
+For parameters, the eventual M2 validator MUST use the narrow §7.3 inventory:
+exact `hmx/parameter_scalars_v1` keys, exact declared artifact `variable` matches
+to registry parameter fields for non-`domain_attributes_v1` artifacts, and exact
+non-`entity_index` `parquet/domain_attributes_v1` column names. It MUST enforce
+registry membership and the `parameter` semantic role for scalar keys, enforce
+each `per_layer` array length against registry-owned `layer_count`, and require
+exactly one physical source per parameter field. M2-S1 implements only the
+registry contract and typed reader. M2-S2 owns these validation outcomes and
+exactly-one-source enforcement.
 
 11.2 Conformance validates FORMAT only. It MUST NOT include any evaluation,
 metric, leaderboard, or wall-time judgment (OUT of scope, §1.4).

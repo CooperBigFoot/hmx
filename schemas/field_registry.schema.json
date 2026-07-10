@@ -16,7 +16,7 @@
   "$defs": {
     "field": {
       "title": "HMX field-registry entry",
-      "description": "One field's typed spec (spec §6.2). Exactly nine keys; additionalProperties:false. Every model-consumed field MUST appear here (prevents F8/F19).",
+      "description": "One field's typed spec (spec §6.2). Nine base keys plus registry-owned layer_count for per_layer fields; additionalProperties:false. Every model-consumed field MUST appear here (prevents F8/F19).",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -42,8 +42,15 @@
           "enum": ["differential_state", "parameter", "forcing", "coupling", "diagnostic"]
         },
         "conservation_class": { "type": "string", "enum": ["water_volume", "energy", "none"] },
-        "extent": { "type": "string", "enum": ["scalar", "per_layer"] }
-      }
+        "extent": { "type": "string", "enum": ["scalar", "per_layer"] },
+        "layer_count": { "type": "integer", "minimum": 1, "description": "Registry-owned layer cardinality for a per_layer field." }
+      },
+      "if": {
+        "properties": { "extent": { "const": "per_layer" } },
+        "required": ["extent"]
+      },
+      "then": { "required": ["layer_count"] },
+      "else": { "not": { "required": ["layer_count"] } }
     }
   }
 }
