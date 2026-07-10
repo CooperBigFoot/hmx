@@ -32,6 +32,7 @@ fn validate_on_valid_package_is_conformant() {
         CheckId::D1,
         CheckId::MAP1,
         CheckId::F1,
+        CheckId::PARAM1,
     ] {
         let outcome = report.find(id).expect("check id is enumerated");
         assert_eq!(outcome.status(), CheckStatus::Ran);
@@ -81,6 +82,10 @@ fn malformed_registry_flips_conformant() {
     assert_eq!(
         report.find(CheckId::R1).and_then(|check| check.result()),
         Some(CheckResult::Fail)
+    );
+    assert_eq!(
+        report.find(CheckId::PARAM1).map(|check| check.status()),
+        Some(CheckStatus::Skipped)
     );
 
     remove_dir(&dir);
@@ -179,6 +184,123 @@ fn dangling_mapping_id_flips_conformant() {
 }
 
 #[test]
+fn parameter_scalars_unknown_field_fails_param1() {
+    let dir = parameter_package(
+        "unknown-scalar",
+        registry_json(),
+        r#"{"cell.unknown": 1.0}"#,
+    );
+
+    assert_param1_fails_with(&dir, &["cell.unknown"]);
+    remove_dir(&dir);
+}
+
+#[test]
+fn parameter_scalars_non_parameter_field_fails_param1() {
+    let registry = registry_with_fields(&[
+        scalar_field("cell.slope", "parameter"),
+        scalar_field("cell.air_temperature_c", "forcing"),
+    ]);
+    let dir = parameter_package(
+        "non-parameter-scalar",
+        registry,
+        r#"{"cell.air_temperature_c": 1.0}"#,
+    );
+
+    assert_param1_fails_with(&dir, &["cell.air_temperature_c", "forcing"]);
+    remove_dir(&dir);
+}
+
+#[test]
+fn parameter_scalars_wrong_extent_fails_param1() {
+    let cases = [
+        (
+            "array-for-scalar",
+            registry_with_fields(&[scalar_field("cell.value", "parameter")]),
+            r#"{"cell.value": [1.0]}"#,
+            "array",
+        ),
+        (
+            "number-for-layer",
+            registry_with_fields(&[per_layer_field("cell.value", 3)]),
+            r#"{"cell.value": 1.0}"#,
+            "number",
+        ),
+    ];
+
+    for (tag, registry, scalars, observed) in cases {
+        let dir = parameter_package(tag, registry, scalars);
+        assert_param1_fails_with(&dir, &["cell.value", observed]);
+        remove_dir(&dir);
+    }
+}
+
+#[test]
+fn parameter_scalars_wrong_layer_count_fails_param1() {
+    let registry = registry_with_fields(&[per_layer_field("cell.layers", 3)]);
+    let dir = parameter_package(
+        "wrong-layer-count",
+        registry,
+        r#"{"cell.layers": [1.0, 2.0]}"#,
+    );
+
+    assert_param1_fails_with(&dir, &["cell.layers", "2 layers", "layer_count is 3"]);
+    remove_dir(&dir);
+}
+
+#[test]
+fn parameter_without_source_fails_param1() {
+    let registry = registry_with_fields(&[
+        scalar_field("cell.missing", "parameter"),
+        scalar_field("cell.slope", "forcing"),
+    ]);
+    let dir = temp_package("parameter-without-source");
+    write_valid_package(&dir);
+    fs::write(dir.join("registry/fields.json"), registry).expect("registry");
+
+    assert_param1_fails_with(&dir, &["cell.missing", "0"]);
+    remove_dir(&dir);
+}
+
+#[test]
+fn parameter_with_scalar_and_raster_sources_fails_param1() {
+    let registry = registry_with_fields(&[
+        scalar_field("cell.slope", "parameter"),
+        scalar_field("cell.attribute", "forcing"),
+    ]);
+    let dir = parameter_package("duplicate-sources", registry, r#"{"cell.slope": 1.0}"#);
+    write_attributes(&dir.join("attributes/cell.parquet"), "cell.attribute");
+    set_flow_variable(&dir, "cell.slope");
+
+    assert_param1_fails_with(&dir, &["cell.slope", "2"]);
+    remove_dir(&dir);
+}
+
+#[test]
+fn exact_parameter_source_inventory_accepts_each_source_kind() {
+    let registry = registry_with_fields(&[
+        scalar_field("cell.scalar", "parameter"),
+        scalar_field("cell.raster", "parameter"),
+        scalar_field("cell.attribute", "parameter"),
+    ]);
+    let dir = parameter_package("source-kinds", registry, r#"{"cell.scalar": 1.0}"#);
+    write_attributes(&dir.join("attributes/cell.parquet"), "cell.attribute");
+    set_flow_variable(&dir, "cell.raster");
+
+    assert_param1_passes(&dir);
+    remove_dir(&dir);
+}
+
+#[test]
+fn unmatched_artifact_variable_is_not_a_parameter_error() {
+    let dir = temp_package("unmatched-variable");
+    write_valid_package(&dir);
+
+    assert_param1_passes(&dir);
+    remove_dir(&dir);
+}
+
+#[test]
 fn describe_on_valid_package_carries_hash_and_facts() {
     let dir = temp_package("describe");
     write_valid_package(&dir);
@@ -226,6 +348,54 @@ fn temp_package(tag: &str) -> PathBuf {
         std::process::id(),
         COUNTER.fetch_add(1, Ordering::Relaxed)
     ))
+}
+
+fn parameter_package(tag: &str, registry: String, scalars: &str) -> PathBuf {
+    let dir = temp_package(tag);
+    write_valid_package(&dir);
+    fs::write(dir.join("registry/fields.json"), registry).expect("registry");
+    fs::create_dir_all(dir.join("parameter")).expect("parameter dir");
+    fs::write(dir.join("parameter/scalars.json"), scalars).expect("parameter scalars");
+    let manifest = fs::read_to_string(dir.join("manifest.json")).expect("manifest exists");
+    let manifest = manifest.replace(
+        r#"    { "role": "registry.fields""#,
+        r#"    { "role": "parameter.scalars", "path": "parameter/scalars.json", "format": "hmx/parameter_scalars_v1", "sha256": "5555555555555555555555555555555555555555555555555555555555555555", "size_bytes": null },
+    { "role": "registry.fields""#,
+    );
+    fs::write(dir.join("manifest.json"), manifest).expect("manifest");
+    dir
+}
+
+fn set_flow_variable(dir: &Path, variable: &str) {
+    let manifest = fs::read_to_string(dir.join("manifest.json")).expect("manifest exists");
+    let manifest = manifest.replace(
+        r#""format": "zarr", "sha256""#,
+        &format!(r#""format": "zarr", "variable": "{variable}", "sha256""#),
+    );
+    fs::write(dir.join("manifest.json"), manifest).expect("manifest");
+}
+
+fn assert_param1_fails_with(dir: &Path, expected_details: &[&str]) {
+    let report = validate(dir).expect("PARAM1 violation is a check failure");
+    let check = report.find(CheckId::PARAM1).expect("PARAM1 present");
+    assert_eq!(check.status(), CheckStatus::Ran);
+    assert_eq!(check.result(), Some(CheckResult::Fail));
+    let detail = check.detail().unwrap_or_default();
+    for expected in expected_details {
+        assert!(detail.contains(expected), "{detail:?} lacks {expected:?}");
+    }
+}
+
+fn assert_param1_passes(dir: &Path) {
+    let report = validate(dir).expect("package validates");
+    let check = report.find(CheckId::PARAM1).expect("PARAM1 present");
+    assert_eq!(check.status(), CheckStatus::Ran);
+    assert_eq!(
+        check.result(),
+        Some(CheckResult::Pass),
+        "{:?}",
+        check.detail()
+    );
 }
 
 fn write_valid_package(dir: &Path) {
@@ -293,6 +463,25 @@ fn registry_json() -> String {
   ]
 }"#
     .to_string()
+}
+
+fn registry_with_fields(fields: &[String]) -> String {
+    format!(
+        "{{\n  \"registry_version\": \"1\",\n  \"fields\": [\n    {}\n  ]\n}}",
+        fields.join(",\n    ")
+    )
+}
+
+fn scalar_field(id: &str, role: &str) -> String {
+    format!(
+        r#"{{ "id": "{id}", "domain": "cell", "quantity": "value", "units": "1", "value_type": "f64", "time_meaning": "instant", "role": "{role}", "conservation_class": "none", "extent": "scalar" }}"#
+    )
+}
+
+fn per_layer_field(id: &str, layer_count: usize) -> String {
+    format!(
+        r#"{{ "id": "{id}", "domain": "cell", "quantity": "value", "units": "1", "value_type": "f64", "time_meaning": "instant", "role": "parameter", "conservation_class": "none", "extent": "per_layer", "layer_count": {layer_count} }}"#
+    )
 }
 
 fn write_mapping(path: &Path, target_index: &[i64]) {

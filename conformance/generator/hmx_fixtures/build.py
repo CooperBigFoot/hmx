@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 
 from hmx_fixtures import get_logger
-from hmx_fixtures.assertions import assert_valid
+from hmx_fixtures.assertions import assert_parameter_scalars_valid, assert_valid
 from hmx_fixtures.encodings import (
     write_cell_to_gauge,
     write_cell_to_reach,
@@ -20,6 +20,7 @@ from hmx_fixtures.encodings import (
 )
 from hmx_fixtures.manifest import artifact, build_manifest, write_manifest
 from hmx_fixtures.mutate import Invalid, derive_invalid
+from hmx_fixtures.parameter_scalars import write_parameter_scalars
 from hmx_fixtures.registry import field, write_registry
 
 
@@ -130,6 +131,54 @@ def emit_real_shape_basin(root: Path) -> None:
     assert_valid(root, minimal=False)
 
 
+def emit_parameter_scalars(root: Path) -> None:
+    """Emit valid/parameter-scalars."""
+    _reset(root)
+    write_registry(
+        root / "registry/fields.json",
+        [
+            field("cell.snow_melt_threshold_c", "cell", "snow_melt_threshold", "degC"),
+            field(
+                "cell.soil_layer_capacity_mm",
+                "cell",
+                "soil_layer_capacity",
+                "mm",
+                extent="per_layer",
+                layer_count=3,
+            ),
+            field("cell.spatial_coefficient", "cell", "spatial_coefficient", "1"),
+            field("cell.air_temperature_c", "cell", "air_temperature", "degC", role="forcing"),
+        ],
+    )
+    write_parameter_scalars(
+        root / "parameter/scalars.json",
+        {
+            "cell.snow_melt_threshold_c": 0.5,
+            "cell.soil_layer_capacity_mm": [100.0, 150.0, 200.0],
+        },
+    )
+    write_cog(root / "parameter/spatial_coefficient.tif")
+
+    manifest = build_manifest(
+        name="parameter-scalars",
+        domains=[{"id": "cell", "entity_count": 1, "index_base": "dense_zero_based"}],
+        mappings=[],
+        artifacts=[
+            artifact("registry.fields", "registry/fields.json", "hmx/field_registry_v1"),
+            artifact("parameter.scalars", "parameter/scalars.json", "hmx/parameter_scalars_v1"),
+            artifact(
+                "parameter.spatial_coefficient",
+                "parameter/spatial_coefficient.tif",
+                "cog",
+                variable="cell.spatial_coefficient",
+                crs="EPSG:32645",
+            ),
+        ],
+    )
+    write_manifest(root / "manifest.json", manifest)
+    assert_parameter_scalars_valid(root)
+
+
 def main() -> None:
     """Emit all fixtures."""
     parser = ArgumentParser()
@@ -142,10 +191,11 @@ def main() -> None:
 
     emit_minimal(valid_root / "minimal")
     emit_real_shape_basin(valid_root / "real-shape-basin")
+    emit_parameter_scalars(valid_root / "parameter-scalars")
     for invalid in Invalid:
         derive_invalid(valid_root, invalid_root, invalid)
 
-    log.info("emitted %d valid and %d invalid fixture(s)", 2, len(Invalid))
+    log.info("emitted %d valid and %d invalid fixture(s)", 3, len(Invalid))
     print("hmx conformance fixtures regenerated")
 
 
