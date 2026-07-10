@@ -12,15 +12,18 @@ The normative, machine-checkable form of `spec/HMX_SPEC.md` (JSON Schema Draft
 | `parameter_scalars.schema.json` | an `hmx/parameter_scalars_v1` scalar-parameter object (spec §7) |
 | `describe.schema.json` | the `describe` CLI output (spec §10.2) |
 | `validate.schema.json` | the `validate` CLI output (spec §10.3) |
+| `derive.schema.json` | the `hmx derive` materialization derivation record (spec §10.9) |
 
 `examples/` holds tiny hand-authored fixtures used to lint these schemas (valid
 fixtures must pass; `*.invalid-*.json` fixtures must be rejected). These are NOT
 the conformance suite — the deterministic generator + golden vectors land in step
-A11. `parameter_scalars.valid.json` demonstrates both a scalar number and a
-per-layer numeric array; `parameter_scalars.invalid-value.json` demonstrates a
-rejected string value.
+A11. `derive.valid.json` demonstrates a derivation record with scalar and
+physical artifact replacements. `parameter_scalars.valid.json` demonstrates
+both a scalar number and a per-layer numeric array;
+`parameter_scalars.invalid-value.json` demonstrates a rejected string value.
 
 Lint locally:
 
     uvx check-jsonschema --check-metaschema schemas/*.schema.json
     uvx check-jsonschema --schemafile schemas/manifest.schema.json schemas/examples/manifest.valid.json
+    uvx check-jsonschema --schemafile schemas/derive.schema.json schemas/examples/derive.valid.json
