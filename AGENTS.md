@@ -7,36 +7,6 @@ package interface: a Rust workspace with the `hmx` CLI (root package), a pure-Ru
 contract core (`crates/core` = `hmx-core`), and a PyO3 binding (`crates/python` =
 `hmx-python`). Standalone sibling of HDX/HFX.
 
-## Version Bumping (mandatory)
-
-**Every commit MUST include a patch version bump.** No exceptions.
-
-Before committing, follow this exact sequence:
-
-1. `./scripts/bump-version.sh patch` — modifies the root `Cargo.toml` `[package]` version.
-2. `cargo update -w` (or `cargo build --workspace`) — regenerates `Cargo.lock` so the `hmx` package version in the lock matches `Cargo.toml`.
-3. Stage `Cargo.toml` AND `Cargo.lock` alongside the code changes in the same commit.
-4. Commit with a conventional commit message.
-5. `git tag v$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')` — tag the commit.
-6. Confirm `git status --short` is empty after the commit + tag.
-
-**Rules:**
-- Patch bumps: automatic with every commit.
-- Minor/major bumps: only on explicit request (`./scripts/bump-version.sh minor|major`).
-- **Never let tooling create its own commit or tag** — fold the version change into the real commit.
-- **Always tag** after every commit. The worktree must be clean afterward.
-
-> `cargo bump` does not support Cargo workspaces (it panics). Use `./scripts/bump-version.sh`.
-
-### Quick Reference
-
-| Command | Effect |
-|---|---|
-| `./scripts/bump-version.sh patch` | `0.1.0` → `0.1.1` |
-| `./scripts/bump-version.sh minor` | `0.1.1` → `0.2.0` |
-| `./scripts/bump-version.sh major` | `0.2.0` → `1.0.0` |
-| `grep '^version' Cargo.toml` | Show current version |
-
 ## Formatting, Linting & Testing (changed-lines-only discipline)
 
 - **Never run `cargo fmt` (or any whole-file / whole-repo formatter) across files you did not author.** Reformatting code you did not write produces unrelated diff churn (friction F13.6 / F18 / F24). Format only the lines you authored.
@@ -83,3 +53,12 @@ Use the `tracing` crate exclusively. Never use `println!` or the `log` crate for
 - Math-friendly names allowed in algorithm code, with a module-doc glossary.
 - **No `use super::*`** — explicit imports only.
 - **Group imports**: std → external crates → crate-internal, separated by blank lines.
+
+<!-- BEGIN SYNCED DOCTRINE; source-sha256=59e37fd6b3dbab27530822e6956da51bb7ae76b637e3638530f99a8b4db9038d -->
+Four rules. They are one design stance seen four ways: a module means one thing, receives exactly what it needs, in types that cannot lie, and dies rather than guess.
+
+1. **A module means one thing.**
+2. **It receives exactly what it needs.**
+3. **Its types cannot lie.**
+4. **It dies rather than guess.**
+<!-- END SYNCED DOCTRINE -->
